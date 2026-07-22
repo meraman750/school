@@ -8,12 +8,14 @@ from apps.core.permissions import IsRegistrar, IsStaffMember
 
 from .models import (
     Student, Guardian, MedicalInfo, EmergencyContact, StudentDocument, Admission,
-    StudentGradeReport,
+    StudentGradeReport, StudentEnrollmentRecord, StudentNote,
 )
 from .serializers import (
     StudentSerializer, GuardianSerializer, MedicalInfoSerializer,
     EmergencyContactSerializer, StudentDocumentSerializer, AdmissionSerializer,
     StudentProfileSerializer, StudentGradeReportSerializer, StudentGradeReportWriteSerializer,
+    StudentEnrollmentRecordSerializer, StudentNoteSerializer,
+    get_subjects_for_grade,
 )
 
 
@@ -34,14 +36,25 @@ class StudentViewSet(BaseModelViewSet):
     @action(detail=True, methods=['get'])
     def profile(self, request, pk=None):
         student = Student.objects.prefetch_related(
-            'guardians',
-            'emergency_contacts',
             'documents',
             'grade_reports__entries__subject',
             'grade_reports__academic_year',
-        ).select_related('medical_info').get(pk=pk)
+            'enrollment_records__academic_year',
+            'student_notes__academic_year',
+        ).get(pk=pk)
         serializer = StudentProfileSerializer(student)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='subjects-by-grade')
+    def subjects_by_grade(self, request):
+        grade_level = request.query_params.get('grade_level')
+        if not grade_level:
+            return Response({'detail': 'grade_level is required.'}, status=400)
+        try:
+            grade_level = int(grade_level)
+        except ValueError:
+            return Response({'detail': 'grade_level must be a number.'}, status=400)
+        return Response(get_subjects_for_grade(grade_level))
 
 
 class StudentGradeReportViewSet(BaseModelViewSet):
@@ -62,6 +75,23 @@ class StudentGradeReportViewSet(BaseModelViewSet):
             created_by=self.request.user,
             updated_by=self.request.user,
         )
+
+
+class StudentEnrollmentRecordViewSet(BaseModelViewSet):
+    queryset = StudentEnrollmentRecord.objects.select_related('student', 'academic_year')
+    serializer_class = StudentEnrollmentRecordSerializer
+    permission_classes = [IsStaffMember]
+    filterset_fields = ['student', 'academic_year', 'grade_level', 'is_current']
+    ordering_fields = ['academic_year__start_date', 'grade_level']
+
+
+class StudentNoteViewSet(BaseModelViewSet):
+    queryset = StudentNote.objects.select_related('student', 'academic_year')
+    serializer_class = StudentNoteSerializer
+    permission_classes = [IsStaffMember]
+    filterset_fields = ['student', 'note_type', 'academic_year']
+    search_fields = ['title', 'content']
+    ordering_fields = ['event_date', 'created_at']
 
 
 class GuardianViewSet(BaseModelViewSet):

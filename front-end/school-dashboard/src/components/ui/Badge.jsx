@@ -1,6 +1,8 @@
 const colors = {
   primary: 'bg-primary/10 text-primary',
   success: 'bg-green-50 text-green-700',
+  danger: 'bg-red-50 text-red-700',
+  warning: 'bg-amber-50 text-amber-700',
   default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
 };
 

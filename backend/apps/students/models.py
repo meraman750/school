@@ -213,3 +213,53 @@ class StudentGradeReportEntry(BaseModel):
 
     def __str__(self):
         return f'{self.subject} - {self.score}'
+
+
+class StudentEnrollmentRecord(BaseModel):
+    """Preserves grade/section history for each academic year the student attends."""
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='enrollment_records')
+    academic_year = models.ForeignKey(
+        'academics.AcademicYear',
+        on_delete=models.CASCADE,
+        related_name='student_enrollments',
+    )
+    grade_level = models.PositiveSmallIntegerField()
+    section = models.CharField(max_length=10, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    is_current = models.BooleanField(default=False)
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-academic_year__start_date']
+        unique_together = ['student', 'academic_year']
+
+    def __str__(self):
+        return f'{self.student} - {self.academic_year} Grade {self.grade_level}'
+
+
+class StudentNote(BaseModel):
+    class NoteType(models.TextChoices):
+        ACHIEVEMENT = 'ACHIEVEMENT', 'Achievement'
+        FAILURE = 'FAILURE', 'Failure'
+        LOSS = 'LOSS', 'Loss'
+        GENERAL = 'GENERAL', 'General'
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='student_notes')
+    academic_year = models.ForeignKey(
+        'academics.AcademicYear',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='student_notes',
+    )
+    note_type = models.CharField(max_length=20, choices=NoteType.choices, default=NoteType.GENERAL)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    event_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-event_date', '-created_at']
+
+    def __str__(self):
+        return f'{self.title} ({self.note_type})'

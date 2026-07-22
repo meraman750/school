@@ -4,11 +4,12 @@ from decimal import Decimal
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.academics.models import Curriculum, Subject
+from apps.academics.models import AcademicYear, Curriculum, Subject
 
 from .models import (
     Student, Guardian, MedicalInfo, EmergencyContact, StudentDocument, Admission,
     StudentGradeReport, StudentGradeReportEntry,
+    StudentEnrollmentRecord, StudentNote,
 )
 
 
@@ -23,6 +24,30 @@ def score_to_letter(score):
     if score >= 60:
         return 'D'
     return 'F'
+
+
+def get_subjects_for_grade(grade_level):
+    if not grade_level:
+        return []
+    curricula = Curriculum.objects.filter(
+        grade_level=grade_level,
+        is_deleted=False,
+    ).select_related('subject').order_by('subject__name')
+    seen = set()
+    subjects = []
+    for item in curricula:
+        if item.subject_id in seen:
+            continue
+        seen.add(item.subject_id)
+        subjects.append({
+            'id': item.subject_id,
+            'name': item.subject.name,
+            'code': item.subject.code,
+        })
+    if not subjects:
+        for subject in Subject.objects.filter(is_deleted=False).order_by('name')[:8]:
+            subjects.append({'id': subject.id, 'name': subject.name, 'code': subject.code})
+    return subjects
 
 
 def generate_admission_number():
@@ -57,6 +82,7 @@ class StudentSerializer(serializers.ModelSerializer):
             'enrollment_date': {'required': False},
             'gender': {'required': True},
             'grade_level': {'required': True},
+            'religion': {'required': False, 'allow_blank': True},
         }
 
     def validate_grade_level(self, value):
@@ -196,45 +222,140 @@ class StudentGradeReportWriteSerializer(serializers.ModelSerializer):
         return report
 
 
+class StudentEnrollmentRecordSerializer(serializers.ModelSerializer):
+    academic_year_name = serializers.CharField(source='academic_year.name', read_only=True)
+    subjects = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StudentEnrollmentRecord
+        fields = (
+            'id', 'student', 'academic_year', 'academic_year_name',
+            'grade_level', 'section', 'start_date', 'end_date',
+            'is_current', 'remarks', 'subjects', 'created_at',
+        )
+        read_only_fields = ('created_at',)
+
+    def get_subjects(self, obj):
+        return get_subjects_for_grade(obj.grade_level)
+
+    def validate_grade_level(self, value):
+        if value < 1 or value > 8:
+            raise serializers.ValidationError('Grade must be between 1 and 8.')
+        return value
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        student = validated_data['student']
+        is_current = validated_data.get('is_current', False)
+
+        if is_current:
+            StudentEnrollmentRecord.objects.filter(
+                student=student, is_current=True,
+            ).update(is_current=False)
+            student.grade_level = validated_data['grade_level']
+            student.section = validated_data.get('section', '')
+            student.save(update_fields=['grade_level', 'section', 'updated_at'])
+
+        return StudentEnrollmentRecord.objects.create(
+            created_by=user,
+            updated_by=user,
+            **validated_data,
+        )
+
+    def update(self, instance, validated_data):
+        user = self.context['request'].user
+        is_current = validated_data.get('is_current', instance.is_current)
+
+        if is_current and not instance.is_current:
+            StudentEnrollmentRecord.objects.filter(
+                student=instance.student, is_current=True,
+            ).exclude(pk=instance.pk).update(is_current=False)
+
+        if is_current:
+            instance.student.grade_level = validated_data.get('grade_level', instance.grade_level)
+            instance.student.section = validated_data.get('section', instance.section)
+            instance.student.save(update_fields=['grade_level', 'section', 'updated_at'])
+
+        validated_data['updated_by'] = user
+        return super().update(instance, validated_data)
+
+
+class StudentNoteSerializer(serializers.ModelSerializer):
+    academic_year_name = serializers.CharField(source='academic_year.name', read_only=True)
+    note_type_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StudentNote
+        fields = (
+            'id', 'student', 'academic_year', 'academic_year_name',
+            'note_type', 'note_type_label', 'title', 'content',
+            'event_date', 'created_at',
+        )
+        read_only_fields = ('created_at',)
+
+    def get_note_type_label(self, obj):
+        return dict(StudentNote.NoteType.choices).get(obj.note_type, obj.note_type)
+
+
 class StudentProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
-    guardians = GuardianSerializer(many=True, read_only=True)
-    medical_info = MedicalInfoSerializer(read_only=True)
-    emergency_contacts = EmergencyContactSerializer(many=True, read_only=True)
     documents = StudentDocumentSerializer(many=True, read_only=True)
     grade_reports = StudentGradeReportSerializer(many=True, read_only=True)
+    enrollment_records = StudentEnrollmentRecordSerializer(many=True, read_only=True)
+    student_notes = StudentNoteSerializer(many=True, read_only=True)
     subjects = serializers.SerializerMethodField()
+    subject_history = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
         fields = (
             'id', 'admission_number', 'full_name', 'first_name', 'middle_name', 'last_name',
-            'gender', 'date_of_birth', 'nationality', 'religion', 'blood_group', 'photo',
+            'gender', 'date_of_birth', 'nationality', 'blood_group', 'photo',
             'email', 'phone', 'address', 'city', 'region', 'status', 'grade_level', 'section',
             'enrollment_date', 'previous_school', 'notes', 'created_at',
-            'guardians', 'medical_info', 'emergency_contacts', 'documents',
-            'grade_reports', 'subjects',
+            'documents', 'grade_reports', 'enrollment_records', 'student_notes',
+            'subjects', 'subject_history',
         )
 
     def get_subjects(self, obj):
-        if not obj.grade_level:
-            return []
-        curricula = Curriculum.objects.filter(
-            grade_level=obj.grade_level,
-            is_deleted=False,
-        ).select_related('subject').order_by('subject__name')
-        seen = set()
-        subjects = []
-        for item in curricula:
-            if item.subject_id in seen:
-                continue
-            seen.add(item.subject_id)
-            subjects.append({
-                'id': item.subject_id,
-                'name': item.subject.name,
-                'code': item.subject.code,
+        return get_subjects_for_grade(obj.grade_level)
+
+    def get_subject_history(self, obj):
+        records = obj.enrollment_records.select_related('academic_year').all()
+        history = []
+        for rec in records:
+            history.append({
+                'academic_year_id': rec.academic_year_id,
+                'academic_year_name': rec.academic_year.name,
+                'grade_level': rec.grade_level,
+                'section': rec.section,
+                'is_current': rec.is_current,
+                'subjects': get_subjects_for_grade(rec.grade_level),
             })
-        if not subjects:
-            for subject in Subject.objects.filter(is_deleted=False).order_by('name')[:8]:
-                subjects.append({'id': subject.id, 'name': subject.name, 'code': subject.code})
-        return subjects
+        if not history and obj.grade_level:
+            history.append({
+                'academic_year_id': None,
+                'academic_year_name': 'Current enrollment',
+                'grade_level': obj.grade_level,
+                'section': obj.section,
+                'is_current': True,
+                'subjects': get_subjects_for_grade(obj.grade_level),
+            })
+        report_years = {}
+        for report in obj.grade_reports.select_related('academic_year').all():
+            key = (report.academic_year_id, report.grade_level)
+            if key not in report_years:
+                report_years[key] = {
+                    'academic_year_id': report.academic_year_id,
+                    'academic_year_name': report.academic_year.name,
+                    'grade_level': report.grade_level,
+                    'section': '',
+                    'is_current': False,
+                    'subjects': get_subjects_for_grade(report.grade_level),
+                }
+        existing_keys = {(h['academic_year_id'], h['grade_level']) for h in history if h['academic_year_id']}
+        for key, entry in report_years.items():
+            if key not in existing_keys:
+                history.append(entry)
+        history.sort(key=lambda h: (not h['is_current'], h.get('academic_year_name', '')), reverse=True)
+        return history

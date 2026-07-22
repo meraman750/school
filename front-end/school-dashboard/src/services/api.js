@@ -108,9 +108,13 @@ function createResourceService(basePath) {
 export const studentsApi = {
   ...createResourceService('students/students'),
   getProfile: (id) => api.get(`students/students/${id}/profile/`).then((r) => r.data),
+  getSubjectsByGrade: (gradeLevel) =>
+    api.get('students/students/subjects-by-grade/', { params: { grade_level: gradeLevel } }).then((r) => r.data),
 };
 
 export const studentGradeReportsApi = createResourceService('students/grade-reports');
+export const studentEnrollmentApi = createResourceService('students/enrollment-records');
+export const studentNotesApi = createResourceService('students/notes');
 export const teachersApi = createResourceService('teachers/teachers');
 export const libraryApi = createResourceService('library/books');
 export const communicationApi = createResourceService('communication/announcements');
