@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import CrudModulePage from '../../components/shared/CrudModulePage';
 import { teachersApi } from '../../services/api';
 import { formatDate, getDisplayName } from '../../utils/formatters';
@@ -6,6 +7,20 @@ const GENDER_OPTIONS = [
   { value: 'M', label: 'Male' },
   { value: 'F', label: 'Female' },
 ];
+
+const STATUS_OPTIONS = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'ON_LEAVE', label: 'On Leave' },
+  { value: 'INACTIVE', label: 'Inactive' },
+  { value: 'TERMINATED', label: 'Terminated' },
+];
+
+const STATUS_STYLES = {
+  ACTIVE: 'bg-green-50 text-green-700',
+  ON_LEAVE: 'bg-amber-50 text-amber-700',
+  INACTIVE: 'bg-gray-100 text-gray-600',
+  TERMINATED: 'bg-red-50 text-red-700',
+};
 
 const columns = [
   { key: 'name', header: 'Teacher', render: (r) => <span className="font-semibold">{getDisplayName(r)}</span> },
@@ -20,7 +35,9 @@ const columns = [
     key: 'status',
     header: 'Status',
     render: (r) => (
-      <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700">{r.status || 'Active'}</span>
+      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_STYLES[r.status] || 'bg-green-50 text-green-700'}`}>
+        {STATUS_OPTIONS.find((s) => s.value === r.status)?.label || r.status || 'Active'}
+      </span>
     ),
   },
   { key: 'created_at', header: 'Joined', render: (r) => formatDate(r.created_at || r.hire_date) },
@@ -46,13 +63,26 @@ function preparePayload(data) {
 }
 
 export default function TeachersPage() {
+  const navigate = useNavigate();
+
   return (
     <CrudModulePage
       title="Teachers"
       description="Manage teaching staff, assignments, and contact information"
       queryKey={['teachers']}
       api={teachersApi}
-      columns={columns}
+      allowDelete={false}
+      allowEdit={false}
+      columns={columns.map((c) => ({
+        ...c,
+        render: c.key === 'name'
+          ? (r) => (
+            <button onClick={() => navigate(`/teachers/${r.id}`)} className="font-semibold text-primary hover:underline">
+              {getDisplayName(r)}
+            </button>
+          )
+          : c.render,
+      }))}
       formFields={formFields}
       preparePayload={preparePayload}
       exportType="teachers"

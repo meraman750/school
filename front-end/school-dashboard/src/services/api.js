@@ -117,7 +117,15 @@ export const studentEnrollmentApi = createResourceService('students/enrollment-r
 export const studentNotesApi = createResourceService('students/notes');
 export const studentGuardiansApi = createResourceService('students/guardians');
 export const studentMedicalApi = createResourceService('students/medical-info');
-export const teachersApi = createResourceService('teachers/teachers');
+export const teachersApi = {
+  ...createResourceService('teachers/teachers'),
+  getProfile: (id) => api.get(`teachers/teachers/${id}/profile/`).then((r) => r.data),
+};
+export const teacherQualificationsApi = createResourceService('teachers/qualifications');
+export const teacherLeavesApi = createResourceService('teachers/leaves');
+export const teacherPerformanceApi = createResourceService('teachers/performance');
+export const teacherSalaryInfoApi = createResourceService('teachers/salary-info');
+export const teacherSalaryPaymentsApi = createResourceService('teachers/salary-payments');
 export const libraryApi = createResourceService('library/books');
 export const communicationApi = createResourceService('communication/announcements');
 export const transportApi = createResourceService('transport/routes');
