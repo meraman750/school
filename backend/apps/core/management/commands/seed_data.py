@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from apps.academics.models import AcademicYear, Term, Department, Subject, SchoolClass, Section, Room
 from apps.students.models import Student, Guardian, MedicalInfo
-from apps.teachers.models import Teacher, TeacherQualification
+from apps.teachers.models import Teacher, TeacherQualification, TeacherSalaryInfo
 from apps.website.models import SchoolInfo, BlogPost, Event, FAQ
 from apps.settings_app.models import SchoolProfile, AcademicSettings, GradingSettings
 from apps.library.models import BookCategory, Book
@@ -140,6 +140,20 @@ class Command(BaseCommand):
                 'institution': 'Addis Ababa University',
                 'field_of_study': 'Mathematics Education',
                 'graduation_year': 2010,
+            },
+        )
+
+        TeacherSalaryInfo.objects.get_or_create(
+            teacher=teacher,
+            defaults={
+                'base_salary': 15000,
+                'housing_allowance': 3000,
+                'transport_allowance': 1500,
+                'tax_deduction': 1200,
+                'pension_deduction': 750,
+                'bank_name': 'Commercial Bank of Ethiopia',
+                'bank_account': '1000123456789',
+                'effective_from': date(2018, 9, 1),
             },
         )
 

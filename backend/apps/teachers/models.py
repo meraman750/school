@@ -114,3 +114,67 @@ class TeacherPerformance(BaseModel):
 
     def __str__(self):
         return f'{self.teacher} - {self.review_period}'
+
+
+class TeacherSalaryInfo(BaseModel):
+    class PaymentMethod(models.TextChoices):
+        BANK = 'BANK', 'Bank Transfer'
+        CASH = 'CASH', 'Cash'
+        MOBILE = 'MOBILE', 'Mobile Money'
+
+    teacher = models.OneToOneField(Teacher, on_delete=models.CASCADE, related_name='salary_info')
+    base_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pension_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    bank_name = models.CharField(max_length=100, blank=True)
+    bank_account = models.CharField(max_length=50, blank=True)
+    payment_method = models.CharField(
+        max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.BANK,
+    )
+    effective_from = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    @property
+    def gross_salary(self):
+        return (
+            self.base_salary + self.housing_allowance
+            + self.transport_allowance + self.other_allowances
+        )
+
+    @property
+    def total_deductions(self):
+        return self.tax_deduction + self.pension_deduction + self.other_deductions
+
+    @property
+    def net_monthly_salary(self):
+        return self.gross_salary - self.total_deductions
+
+    def __str__(self):
+        return f'Salary Info - {self.teacher}'
+
+
+class TeacherSalaryPayment(BaseModel):
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        PAID = 'PAID', 'Paid'
+
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='salary_payments')
+    pay_period_start = models.DateField()
+    pay_period_end = models.DateField()
+    basic_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    net_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    payment_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-pay_period_start']
+
+    def __str__(self):
+        return f'{self.teacher} - {self.pay_period_start}'
