@@ -25,7 +25,7 @@ class Teacher(BaseModel):
     gender = models.CharField(max_length=1, choices=[('M', 'Male'), ('F', 'Female')])
     date_of_birth = models.DateField()
     email = models.EmailField()
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     photo = models.ImageField(upload_to='teachers/photos/', blank=True, null=True)
     hire_date = models.DateField()

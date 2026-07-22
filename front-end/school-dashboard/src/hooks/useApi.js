@@ -2,6 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { normalizeListResponse } from '../utils/formatters';
 
+function getApiErrorMessage(error, fallback) {
+  const data = error?.response?.data;
+  if (!data) return fallback;
+  if (typeof data === 'string') return data;
+  if (data.detail) return data.detail;
+  const firstKey = Object.keys(data)[0];
+  if (firstKey && Array.isArray(data[firstKey])) return data[firstKey][0];
+  if (firstKey && typeof data[firstKey] === 'string') return data[firstKey];
+  return fallback;
+}
+
 export function useListQuery(key, fetcher, params = {}, options = {}) {
   return useQuery({
     queryKey: [...key, params],
@@ -30,7 +41,7 @@ export function useCreateMutation(key, createFn, options = {}) {
       options.onSuccess?.(...args);
     },
     onError: (error) => {
-      toast.error(error?.response?.data?.detail || options.errorMessage || 'Create failed');
+      toast.error(getApiErrorMessage(error, options.errorMessage || 'Create failed'));
     },
   });
 }
@@ -45,7 +56,7 @@ export function useUpdateMutation(key, updateFn, options = {}) {
       options.onSuccess?.(...args);
     },
     onError: (error) => {
-      toast.error(error?.response?.data?.detail || options.errorMessage || 'Update failed');
+      toast.error(getApiErrorMessage(error, options.errorMessage || 'Update failed'));
     },
   });
 }

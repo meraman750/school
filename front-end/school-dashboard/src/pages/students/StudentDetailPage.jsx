@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { FiArrowLeft, FiMail, FiPhone, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiPhone, FiUser } from 'react-icons/fi';
 import { studentsApi } from '../../services/api';
 import Card, { CardHeader } from '../../components/ui/Card';
 import { TableSkeleton } from '../../components/ui/Skeleton';
@@ -37,15 +37,14 @@ export default function StudentDetailPage() {
         <Card>
           <CardHeader title="Personal Info" />
           <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-gray-600"><FiUser className="text-primary" /> {student.gender || '—'}</div>
-            <div className="flex items-center gap-2 text-gray-600"><FiMail className="text-primary" /> {student.email || '—'}</div>
+            <div className="flex items-center gap-2 text-gray-600"><FiUser className="text-primary" /> {student.gender === 'M' ? 'Male' : student.gender === 'F' ? 'Female' : '—'}</div>
             <div className="flex items-center gap-2 text-gray-600"><FiPhone className="text-primary" /> {student.phone || '—'}</div>
           </div>
         </Card>
         <Card>
           <CardHeader title="Academic Info" />
           <div className="space-y-2 text-sm text-gray-600">
-            <p>Grade: <strong className="text-gray-900 dark:text-white">{student.grade || student.class_name || '—'}</strong></p>
+            <p>Grade: <strong className="text-gray-900 dark:text-white">{student.grade_level ? `Grade ${student.grade_level}` : '—'}</strong></p>
             <p>Section: <strong className="text-gray-900 dark:text-white">{student.section || '—'}</strong></p>
             <p>Status: <strong className="text-gray-900 dark:text-white">{student.status || 'Active'}</strong></p>
           </div>

@@ -7,6 +7,7 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import EmptyState from '../ui/EmptyState';
 import FilterPanel from '../ui/FilterPanel';
 import Input from '../ui/Input';
+import Select from '../ui/Select';
 import Modal from '../ui/Modal';
 import Pagination from '../ui/Pagination';
 import SearchBar from '../ui/SearchBar';
@@ -32,6 +33,7 @@ export default function CrudModulePage({
   emptyDescription = 'Create a new record to get started.',
   createLabel = 'Add New',
   getDefaultValues,
+  preparePayload,
 }) {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState({});
@@ -71,16 +73,19 @@ export default function CrudModulePage({
   const openEdit = (row) => {
     setEditing(row);
     formFields.forEach((field) => {
-      setValue(field.name, row[field.name] ?? '');
+      let value = row[field.name] ?? '';
+      if (field.name === 'subject') value = row.subject ?? row.specialization ?? '';
+      setValue(field.name, value);
     });
     setModalOpen(true);
   };
 
   const onSubmit = (formData) => {
+    const payload = preparePayload ? preparePayload(formData) : formData;
     if (editing) {
-      updateMutation.mutate({ id: editing.id, data: formData });
+      updateMutation.mutate({ id: editing.id, data: payload });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(payload);
     }
   };
 
@@ -168,14 +173,53 @@ export default function CrudModulePage({
         title={editing ? `Edit ${title}` : `New ${title}`}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {formFields.map((field) => (
-            <Input
-              key={field.name}
-              label={field.label}
-              type={field.type || 'text'}
-              {...register(field.name, { required: field.required })}
-            />
-          ))}
+          {formFields.map((field) => {
+            if (field.type === 'select') {
+              return (
+                <Select
+                  key={field.name}
+                  label={field.label}
+                  options={field.options || []}
+                  placeholder={field.placeholder || 'Select...'}
+                  {...register(field.name, { required: field.required })}
+                />
+              );
+            }
+
+            return (
+              <Input
+                key={field.name}
+                label={field.label}
+                type={field.type === 'number' ? 'number' : field.type || 'text'}
+                min={field.min}
+                max={field.max}
+                step={field.type === 'number' ? 1 : undefined}
+                inputMode={field.type === 'number' ? 'numeric' : undefined}
+                onKeyDown={
+                  field.type === 'number'
+                    ? (e) => {
+                        if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault();
+                      }
+                    : undefined
+                }
+                {...register(field.name, {
+                  required: field.required,
+                  valueAsNumber: field.type === 'number',
+                  min: field.min,
+                  max: field.max,
+                  validate: field.type === 'number'
+                    ? (value) => {
+                        if (value === '' || Number.isNaN(value)) return field.required ? 'Grade is required' : true;
+                        if (!Number.isInteger(value)) return 'Enter a whole number';
+                        if (field.min != null && value < field.min) return `Minimum is ${field.min}`;
+                        if (field.max != null && value > field.max) return `Maximum is ${field.max}`;
+                        return true;
+                      }
+                    : undefined,
+                })}
+              />
+            );
+          })}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setModalOpen(false)}>
               Cancel

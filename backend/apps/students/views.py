@@ -13,8 +13,8 @@ class StudentViewSet(BaseModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
     permission_classes = [IsStaffMember]
-    filterset_fields = ['status', 'gender', 'city', 'region']
-    search_fields = ['admission_number', 'first_name', 'last_name', 'email', 'phone']
+    filterset_fields = ['status', 'gender', 'grade_level', 'city', 'region']
+    search_fields = ['first_name', 'last_name', 'phone']
     ordering_fields = ['enrollment_date', 'last_name', 'created_at']
 
 
