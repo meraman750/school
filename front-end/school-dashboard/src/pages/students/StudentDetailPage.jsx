@@ -423,6 +423,14 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
 
 function EnrollmentEditModal({ isOpen, onClose, record, onSuccess }) {
   const { register, handleSubmit, reset } = useForm();
+  const [selectedSubjects, setSelectedSubjects] = useState([]);
+
+  const { data: allSubjectsData } = useQuery({
+    queryKey: ['all-subjects'],
+    queryFn: () => academicsSubApi.subjects.list({ page_size: 100 }),
+    enabled: isOpen,
+  });
+  const allSubjects = allSubjectsData?.results || allSubjectsData || [];
 
   useEffect(() => {
     if (isOpen && record) {
@@ -433,8 +441,15 @@ function EnrollmentEditModal({ isOpen, onClose, record, onSuccess }) {
         is_current: record.is_current,
         remarks: record.remarks || '',
       });
+      setSelectedSubjects((record.subjects || []).map((s) => s.id));
     }
   }, [isOpen, record, reset]);
+
+  const toggleSubject = (subjectId) => {
+    setSelectedSubjects((prev) => (
+      prev.includes(subjectId) ? prev.filter((id) => id !== subjectId) : [...prev, subjectId]
+    ));
+  };
 
   const mutation = useMutation({
     mutationFn: (data) => studentEnrollmentApi.update(record.id, {
@@ -443,6 +458,7 @@ function EnrollmentEditModal({ isOpen, onClose, record, onSuccess }) {
       start_date: data.start_date || null,
       is_current: data.is_current === true || data.is_current === 'on',
       remarks: data.remarks || '',
+      subject_ids: selectedSubjects,
     }),
     onSuccess: () => { toast.success('Enrollment updated'); onSuccess(); onClose(); },
     onError: (err) => toast.error(getApiError(err, 'Failed to update enrollment')),
@@ -451,7 +467,7 @@ function EnrollmentEditModal({ isOpen, onClose, record, onSuccess }) {
   if (!record) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${record.academic_year_name} Enrollment`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${record.academic_year_name} Enrollment`} size="lg">
       <form onSubmit={handleSubmit((d) => mutation.mutate(d), onFormInvalid)} className="space-y-4">
         <Input label="Academic Year" value={record.academic_year_name} disabled />
         <div className="grid grid-cols-2 gap-4">
@@ -462,8 +478,33 @@ function EnrollmentEditModal({ isOpen, onClose, record, onSuccess }) {
         <Textarea label="Remarks" rows={2} {...register('remarks')} />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" {...register('is_current')} className="rounded" />
-          Current enrollment (uncheck others automatically)
+          Current enrollment (only one allowed)
         </label>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Subjects — check to add, uncheck to remove</p>
+            <span className="text-xs text-gray-500">{selectedSubjects.length} selected</span>
+          </div>
+          <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+            {allSubjects.map((subject) => (
+              <label key={subject.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedSubjects.includes(subject.id)}
+                  onChange={() => toggleSubject(subject.id)}
+                  className="rounded"
+                />
+                <span>{subject.name} ({subject.code})</span>
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSubjects(allSubjects.map((s) => s.id))}>Add all</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSubjects([])}>Remove all</Button>
+          </div>
+        </div>
+
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <Button type="submit" size="sm" loading={mutation.isPending}>Save</Button>

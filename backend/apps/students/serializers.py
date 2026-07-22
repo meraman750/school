@@ -349,6 +349,8 @@ class StudentEnrollmentRecordSerializer(serializers.ModelSerializer):
         subject_ids = validated_data.pop('subject_ids', None)
         student = validated_data.pop('student')
         academic_year = validated_data.pop('academic_year')
+        validated_data.pop('created_by', None)
+        validated_data.pop('updated_by', None)
 
         if StudentEnrollmentRecord.objects.filter(
             student=student, academic_year=academic_year,
@@ -377,6 +379,7 @@ class StudentEnrollmentRecordSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         user = self.context['request'].user
         subject_ids = validated_data.pop('subject_ids', None)
+        validated_data.pop('created_by', None)
         is_current = validated_data.get('is_current', instance.is_current)
 
         if is_current:
