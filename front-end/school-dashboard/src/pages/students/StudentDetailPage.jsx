@@ -789,6 +789,9 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
 
   const [scores, setScores] = useState({});
 
+  const yearOptions = toEthiopianYearOptions(yearsData);
+  const defaultReportYear = yearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR) || yearOptions[0];
+
   useEffect(() => {
     if (isOpen && student) {
       reset({
@@ -845,9 +848,6 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
       entries,
     });
   };
-
-  const yearOptions = toEthiopianYearOptions(yearsData);
-  const defaultReportYear = yearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR) || yearOptions[0];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Grade Report" size="lg">
