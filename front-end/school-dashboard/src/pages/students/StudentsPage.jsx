@@ -11,9 +11,6 @@ const GENDER_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
   { value: 'INACTIVE', label: 'Inactive' },
-  { value: 'GRADUATED', label: 'Graduated' },
-  { value: 'TRANSFERRED', label: 'Transferred' },
-  { value: 'SUSPENDED', label: 'Suspended' },
 ];
 
 const SECTION_OPTIONS = ['A', 'B', 'C', 'D', 'E'].map((s) => ({ value: s, label: `Section ${s}` }));
@@ -23,9 +20,6 @@ const GRADE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({ value: String(g), l
 const STATUS_STYLES = {
   ACTIVE: 'bg-green-50 text-green-700',
   INACTIVE: 'bg-gray-100 text-gray-600',
-  GRADUATED: 'bg-blue-50 text-blue-700',
-  TRANSFERRED: 'bg-purple-50 text-purple-700',
-  SUSPENDED: 'bg-red-50 text-red-700',
 };
 
 const columns = [

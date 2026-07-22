@@ -12,9 +12,6 @@ class Student(BaseModel):
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
         INACTIVE = 'INACTIVE', 'Inactive'
-        GRADUATED = 'GRADUATED', 'Graduated'
-        TRANSFERRED = 'TRANSFERRED', 'Transferred'
-        SUSPENDED = 'SUSPENDED', 'Suspended'
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

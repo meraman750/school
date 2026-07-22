@@ -45,6 +45,12 @@ class StudentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Grade must be between 1 and 8.')
         return value
 
+    def validate_status(self, value):
+        allowed = {Student.Status.ACTIVE, Student.Status.INACTIVE}
+        if value not in allowed:
+            raise serializers.ValidationError('Status must be Active or Inactive.')
+        return value
+
     def validate(self, attrs):
         if self.instance is None:
             if not attrs.get('date_of_birth'):

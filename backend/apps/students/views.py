@@ -22,7 +22,7 @@ class StudentViewSet(BaseModelViewSet):
     def destroy(self, request, *args, **kwargs):
         raise MethodNotAllowed(
             'DELETE',
-            detail='Students cannot be deleted. Change status to Inactive, Transferred, or Graduated instead.',
+            detail='Students cannot be deleted. Set status to Inactive instead.',
         )
 
 
