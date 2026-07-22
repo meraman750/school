@@ -16,7 +16,7 @@ from .serializers import (
 
 
 class AcademicYearViewSet(BaseModelViewSet):
-    queryset = AcademicYear.objects.all()
+    queryset = AcademicYear.objects.filter(name__endswith=' E.C.').order_by('-start_date')
     serializer_class = AcademicYearSerializer
     permission_classes = [IsStaffMember]
     filterset_fields = ['is_current']

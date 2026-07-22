@@ -69,8 +69,8 @@ def sync_student_from_current_enrollment(student):
 
 def get_current_academic_year():
     return (
-        AcademicYear.objects.filter(is_current=True, is_deleted=False).first()
-        or AcademicYear.objects.filter(is_deleted=False).order_by('-start_date').first()
+        AcademicYear.objects.filter(is_current=True, is_deleted=False, name__endswith=' E.C.').first()
+        or AcademicYear.objects.filter(is_deleted=False, name__endswith=' E.C.').order_by('-start_date').first()
     )
 
 

@@ -38,5 +38,5 @@ def seed_ethiopian_academic_years(AcademicYear):
         created.append((year, was_created))
     AcademicYear.objects.exclude(
         name__in=[ethiopian_year_label(ec) for ec, _, _ in ETHIOPIAN_ACADEMIC_YEARS],
-    ).update(is_current=False)
+    ).update(is_current=False, is_deleted=True)
     return created

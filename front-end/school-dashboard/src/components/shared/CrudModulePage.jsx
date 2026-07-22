@@ -35,6 +35,7 @@ export default function CrudModulePage({
   getDefaultValues,
   preparePayload,
   allowDelete = true,
+  allowEdit = true,
 }) {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState({});
@@ -102,23 +103,27 @@ export default function CrudModulePage({
 
   const tableColumns = [
     ...columns,
-    {
-      key: 'actions',
-      header: 'Actions',
-      className: 'text-right',
-      render: (row) => (
-        <div className="flex justify-end gap-1">
-          <button type="button" onClick={() => openEdit(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary">
-            <FiEdit2 />
-          </button>
-          {allowDelete && (
-            <button type="button" onClick={() => setDeleteTarget(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600">
-              <FiTrash2 />
-            </button>
-          )}
-        </div>
-      ),
-    },
+    ...(allowEdit || allowDelete
+      ? [{
+          key: 'actions',
+          header: 'Actions',
+          className: 'text-right',
+          render: (row) => (
+            <div className="flex justify-end gap-1">
+              {allowEdit && (
+                <button type="button" onClick={() => openEdit(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary">
+                  <FiEdit2 />
+                </button>
+              )}
+              {allowDelete && (
+                <button type="button" onClick={() => setDeleteTarget(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600">
+                  <FiTrash2 />
+                </button>
+              )}
+            </div>
+          ),
+        }]
+      : []),
   ];
 
   return (

@@ -80,6 +80,7 @@ export default function StudentsPage() {
       queryKey={['students']}
       api={studentsApi}
       allowDelete={false}
+      allowEdit={false}
       columns={columns.map((c) => ({
         ...c,
         render: c.key === 'name'

@@ -13,3 +13,15 @@ export const ETHIOPIAN_ACADEMIC_YEARS = [
 ];
 
 export const CURRENT_ETHIOPIAN_YEAR = '2018 E.C.';
+
+export function filterEthiopianYears(years) {
+  const list = years?.results || years || [];
+  return list.filter((y) => String(y.name || '').includes('E.C.'));
+}
+
+export function toEthiopianYearOptions(years) {
+  return filterEthiopianYears(years).map((y) => ({
+    value: String(y.id),
+    label: y.name,
+  }));
+}

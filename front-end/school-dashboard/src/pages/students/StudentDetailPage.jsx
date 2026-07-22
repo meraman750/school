@@ -22,6 +22,7 @@ import Textarea from '../../components/ui/Textarea';
 import Badge from '../../components/ui/Badge';
 import Table from '../../components/ui/Table';
 import { formatDate, getDisplayName, getInitials } from '../../utils/formatters';
+import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
 
 const QUARTERS = [
   { value: '1', label: 'Quarter 1' },
@@ -302,19 +303,18 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
   const enrolledYearIds = new Set(
     (student?.enrollment_records || []).map((r) => String(r.academic_year)),
   );
-  const allYearOptions = (yearsData?.results || yearsData || []).map((y) => ({
-    value: String(y.id),
-    label: y.name,
-  }));
+  const allYearOptions = toEthiopianYearOptions(yearsData);
   const availableYearOptions = allYearOptions.filter((y) => !enrolledYearIds.has(y.value));
   const hasCurrentEnrollment = (student?.enrollment_records || []).some((r) => r.is_current);
+  const defaultYearOption = availableYearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR)
+    || availableYearOptions[0];
 
   const allSubjects = allSubjectsData?.results || allSubjectsData || [];
 
   useEffect(() => {
     if (isOpen) {
       reset({
-        academic_year: '',
+        academic_year: defaultYearOption?.value || '',
         grade_level: student?.grade_level ? String(student.grade_level) : '',
         section: student?.section || '',
         start_date: '',
@@ -323,7 +323,7 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
       });
       setSelectedSubjects([]);
     }
-  }, [isOpen, student, hasCurrentEnrollment, reset]);
+  }, [isOpen, student, hasCurrentEnrollment, defaultYearOption?.value, reset]);
 
   useEffect(() => {
     if (gradeSubjects.length && !selectedSubjects.length) {
@@ -703,10 +703,7 @@ function StudentNoteModal({ isOpen, onClose, student, note, onSuccess }) {
     queryFn: () => academicsSubApi.years.list(),
     enabled: isOpen,
   });
-  const yearOptions = [{ value: '', label: 'None' }, ...(yearsData?.results || yearsData || []).map((y) => ({
-    value: String(y.id),
-    label: y.name,
-  }))];
+  const yearOptions = [{ value: '', label: 'None' }, ...toEthiopianYearOptions(yearsData)];
 
   useEffect(() => {
     if (isOpen) {
@@ -795,7 +792,7 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
   useEffect(() => {
     if (isOpen && student) {
       reset({
-        academic_year: '',
+        academic_year: defaultReportYear?.value || '',
         grade_level: student.grade_level ? String(student.grade_level) : '',
         quarter: '',
         teacher_remarks: '',
@@ -803,7 +800,7 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
       });
       setScores({});
     }
-  }, [isOpen, student, reset]);
+  }, [isOpen, student, defaultReportYear?.value, reset]);
 
   useEffect(() => {
     setScores({});
@@ -849,10 +846,8 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
     });
   };
 
-  const yearOptions = (yearsData?.results || yearsData || []).map((y) => ({
-    value: String(y.id),
-    label: y.name,
-  }));
+  const yearOptions = toEthiopianYearOptions(yearsData);
+  const defaultReportYear = yearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR) || yearOptions[0];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Grade Report" size="lg">
