@@ -40,13 +40,17 @@ class Command(BaseCommand):
             self.stdout.write('Admin user already exists.')
 
         academic_year, _ = AcademicYear.objects.get_or_create(
-            name='2025/2026',
+            name='2018 E.C.',
             defaults={
-                'start_date': date(2025, 9, 1),
-                'end_date': date(2026, 6, 30),
+                'start_date': date(2025, 9, 11),
+                'end_date': date(2026, 9, 10),
                 'is_current': True,
             },
         )
+
+        from apps.academics.ethiopian_calendar import seed_ethiopian_academic_years
+        seed_ethiopian_academic_years(AcademicYear)
+        academic_year = AcademicYear.objects.filter(is_current=True).first() or academic_year
 
         Term.objects.get_or_create(
             academic_year=academic_year,

@@ -168,39 +168,66 @@ function PersonalEditModal({ isOpen, onClose, student, onSuccess }) {
 
 function AcademicEditModal({ isOpen, onClose, student, onSuccess }) {
   const { register, handleSubmit, reset } = useForm();
+  const current = student?.current_enrollment;
 
   useEffect(() => {
     if (isOpen && student) {
       reset({
-        grade_level: student.grade_level ? String(student.grade_level) : '',
-        section: student.section || '',
+        grade_level: current?.grade_level ? String(current.grade_level) : (student.grade_level ? String(student.grade_level) : ''),
+        section: current?.section || student.section || '',
         status: student.status || 'ACTIVE',
         enrollment_date: student.enrollment_date || '',
         previous_school: student.previous_school || '',
         notes: student.notes || '',
       });
     }
-  }, [isOpen, student, reset]);
+  }, [isOpen, student, current, reset]);
 
   const mutation = useMutation({
-    mutationFn: (data) => studentsApi.update(student.id, {
-      grade_level: Number(data.grade_level),
-      section: data.section,
-      status: data.status,
-      enrollment_date: data.enrollment_date || undefined,
-      previous_school: data.previous_school,
-      notes: data.notes,
-    }),
+    mutationFn: async (data) => {
+      if (current?.id) {
+        await studentEnrollmentApi.update(current.id, {
+          grade_level: Number(data.grade_level),
+          section: data.section || '',
+          is_current: true,
+        });
+      }
+      return studentsApi.update(student.id, {
+        status: data.status,
+        enrollment_date: data.enrollment_date || undefined,
+        previous_school: data.previous_school,
+        notes: data.notes,
+      });
+    },
     onSuccess: () => { toast.success('Academic information updated'); onSuccess(); onClose(); },
     onError: (err) => toast.error(getApiError(err, 'Failed to update')),
   });
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Academic Information" size="lg">
+      {!current && (
+        <p className="mb-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+          No current year enrollment. Add a year enrollment first to sync grade, section, and academic year.
+        </p>
+      )}
       <form onSubmit={handleSubmit((d) => mutation.mutate(d), onFormInvalid)} className="space-y-4">
+        {current && (
+          <Input label="Academic Year (Ethiopian Calendar)" value={current.academic_year_name} disabled />
+        )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Select label="Grade Level" options={GRADES} placeholder={false} {...register('grade_level', { required: true })} />
-          <Select label="Section" options={[{ value: '', label: 'None' }, ...SECTIONS]} {...register('section')} />
+          <Select
+            label="Grade Level"
+            options={GRADES}
+            placeholder={false}
+            {...register('grade_level', { required: true })}
+            disabled={!current}
+          />
+          <Select
+            label="Section"
+            options={[{ value: '', label: 'None' }, ...SECTIONS]}
+            {...register('section')}
+            disabled={!current}
+          />
           <Select label="Status" options={STATUS_OPTIONS} placeholder={false} {...register('status', { required: true })} />
           <Input label="Enrollment Date" type="date" {...register('enrollment_date')} />
         </div>
@@ -256,7 +283,7 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
 
   const { data: yearsData } = useQuery({
     queryKey: ['academic-years'],
-    queryFn: () => academicsSubApi.years.list(),
+    queryFn: () => academicsSubApi.years.list({ page_size: 50 }),
     enabled: isOpen,
   });
 
@@ -272,10 +299,16 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
     enabled: isOpen && Boolean(selectedGrade),
   });
 
-  const yearOptions = (yearsData?.results || yearsData || []).map((y) => ({
+  const enrolledYearIds = new Set(
+    (student?.enrollment_records || []).map((r) => String(r.academic_year)),
+  );
+  const allYearOptions = (yearsData?.results || yearsData || []).map((y) => ({
     value: String(y.id),
     label: y.name,
   }));
+  const availableYearOptions = allYearOptions.filter((y) => !enrolledYearIds.has(y.value));
+  const hasCurrentEnrollment = (student?.enrollment_records || []).some((r) => r.is_current);
+
   const allSubjects = allSubjectsData?.results || allSubjectsData || [];
 
   useEffect(() => {
@@ -285,12 +318,12 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
         grade_level: student?.grade_level ? String(student.grade_level) : '',
         section: student?.section || '',
         start_date: '',
-        is_current: true,
+        is_current: !hasCurrentEnrollment,
         remarks: '',
       });
       setSelectedSubjects([]);
     }
-  }, [isOpen, student, reset]);
+  }, [isOpen, student, hasCurrentEnrollment, reset]);
 
   useEffect(() => {
     if (gradeSubjects.length && !selectedSubjects.length) {
@@ -309,8 +342,8 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
       remarks: data.remarks || '',
       subject_ids: selectedSubjects,
     }),
-    onSuccess: () => { toast.success('Enrollment record saved'); onSuccess(); onClose(); },
-    onError: (err) => toast.error(getApiError(err, 'Failed to save enrollment')),
+    onSuccess: () => { toast.success('New enrollment added'); onSuccess(); onClose(); },
+    onError: (err) => toast.error(getApiError(err, 'Failed to add enrollment')),
   });
 
   const toggleSubject = (subjectId) => {
@@ -320,12 +353,20 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Year Enrollment" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Year Enrollment" size="lg">
       <form onSubmit={handleSubmit((d) => mutation.mutate(d), onFormInvalid)} className="space-y-4">
-        {!yearOptions.length && (
-          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">No academic years found. Create one under Academics first.</p>
+        {!availableYearOptions.length && (
+          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+            {allYearOptions.length
+              ? 'This student is already enrolled in all available academic years.'
+              : 'No academic years found. Run seed data or add years under Academics.'}
+          </p>
         )}
-        <Select label="Academic Year" options={yearOptions} {...register('academic_year', { required: true })} />
+        <Select
+          label="Academic Year (Ethiopian Calendar)"
+          options={availableYearOptions}
+          {...register('academic_year', { required: true })}
+        />
         <div className="grid grid-cols-2 gap-4">
           <Select label="Grade" options={GRADES} placeholder={false} {...register('grade_level', { required: true })} />
           <Select label="Section" options={[{ value: '', label: 'None' }, ...SECTIONS]} {...register('section')} />
@@ -334,11 +375,14 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
         <Textarea label="Remarks" rows={2} {...register('remarks')} />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" {...register('is_current')} className="rounded" />
-          Set as current enrollment
+          Set as current enrollment (only one can be current)
         </label>
 
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">Subjects for this year & grade</p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Subjects for this year & grade</p>
+            <span className="text-xs text-gray-500">{selectedSubjects.length} selected</span>
+          </div>
           <div className="max-h-48 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-700">
             {allSubjects.map((subject) => (
               <label key={subject.id} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -351,18 +395,78 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
                 <span>{subject.name} ({subject.code})</span>
               </label>
             ))}
-            {!allSubjects.length && <p className="text-xs text-gray-500">No subjects in system. Add subjects under Academics.</p>}
+            {!allSubjects.length && <p className="text-xs text-gray-500">No subjects in system.</p>}
           </div>
-          {selectedGrade && gradeSubjects.length > 0 && (
-            <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setSelectedSubjects(gradeSubjects.map((s) => s.id))}>
-              Use default Grade {selectedGrade} curriculum
+          <div className="mt-2 flex gap-2">
+            {selectedGrade && gradeSubjects.length > 0 && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSubjects(gradeSubjects.map((s) => s.id))}>
+                Use Grade {selectedGrade} curriculum
+              </Button>
+            )}
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSubjects(allSubjects.map((s) => s.id))}>
+              Select all
             </Button>
-          )}
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSubjects([])}>
+              Clear all
+            </Button>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" loading={mutation.isPending} disabled={!yearOptions.length}>Save</Button>
+          <Button type="submit" size="sm" loading={mutation.isPending} disabled={!availableYearOptions.length}>Add Enrollment</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function EnrollmentEditModal({ isOpen, onClose, record, onSuccess }) {
+  const { register, handleSubmit, reset } = useForm();
+
+  useEffect(() => {
+    if (isOpen && record) {
+      reset({
+        grade_level: String(record.grade_level),
+        section: record.section || '',
+        start_date: record.start_date || '',
+        is_current: record.is_current,
+        remarks: record.remarks || '',
+      });
+    }
+  }, [isOpen, record, reset]);
+
+  const mutation = useMutation({
+    mutationFn: (data) => studentEnrollmentApi.update(record.id, {
+      grade_level: Number(data.grade_level),
+      section: data.section || '',
+      start_date: data.start_date || null,
+      is_current: data.is_current === true || data.is_current === 'on',
+      remarks: data.remarks || '',
+    }),
+    onSuccess: () => { toast.success('Enrollment updated'); onSuccess(); onClose(); },
+    onError: (err) => toast.error(getApiError(err, 'Failed to update enrollment')),
+  });
+
+  if (!record) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Edit ${record.academic_year_name} Enrollment`}>
+      <form onSubmit={handleSubmit((d) => mutation.mutate(d), onFormInvalid)} className="space-y-4">
+        <Input label="Academic Year" value={record.academic_year_name} disabled />
+        <div className="grid grid-cols-2 gap-4">
+          <Select label="Grade" options={GRADES} placeholder={false} {...register('grade_level', { required: true })} />
+          <Select label="Section" options={[{ value: '', label: 'None' }, ...SECTIONS]} {...register('section')} />
+        </div>
+        <Input label="Start Date" type="date" {...register('start_date')} />
+        <Textarea label="Remarks" rows={2} {...register('remarks')} />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" {...register('is_current')} className="rounded" />
+          Current enrollment (uncheck others automatically)
+        </label>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button type="submit" size="sm" loading={mutation.isPending}>Save</Button>
         </div>
       </form>
     </Modal>
@@ -401,11 +505,20 @@ function EnrollmentSubjectsModal({ isOpen, onClose, enrollmentEntry, onSuccess }
 
   if (!enrollmentEntry?.enrollment_id) return null;
 
+  const unselectedSubjects = allSubjects.filter((s) => !selectedSubjects.includes(s.id));
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Subjects" size="lg">
       <p className="mb-3 text-xs text-gray-500">
-        {enrollmentEntry.academic_year_name} · Grade {enrollmentEntry.grade_level}
+        {enrollmentEntry.academic_year_name} · Grade {enrollmentEntry.grade_level} — check to add, uncheck to remove
       </p>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{selectedSubjects.length} subjects enrolled</span>
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSubjects(allSubjects.map((s) => s.id))}>Add all</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSubjects([])}>Remove all</Button>
+        </div>
+      </div>
       <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-gray-200 p-3 dark:border-gray-700">
         {allSubjects.map((subject) => (
           <label key={subject.id} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -419,6 +532,11 @@ function EnrollmentSubjectsModal({ isOpen, onClose, enrollmentEntry, onSuccess }
           </label>
         ))}
       </div>
+      {unselectedSubjects.length > 0 && (
+        <p className="mt-2 text-xs text-gray-500">
+          {unselectedSubjects.length} subject(s) available to add
+        </p>
+      )}
       <div className="mt-4 flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
         <Button type="button" size="sm" loading={mutation.isPending} onClick={() => mutation.mutate()}>Save Subjects</Button>
@@ -523,7 +641,7 @@ function MedicalEditModal({ isOpen, onClose, student, onSuccess }) {
         <Textarea label="Medications" rows={2} {...register('medications')} />
         <div className="grid grid-cols-2 gap-4">
           <Input label="Doctor Name" {...register('doctor_name')} />
-          <Input label="Doctor Phone" {...register('doctor_phone')} />
+          <Input type="number" label="Doctor Phone" {...register('doctor_phone')} />
         </div>
         <Textarea label="Special Needs" rows={2} {...register('special_needs')} />
         <div className="flex justify-end gap-2 pt-2">
@@ -702,7 +820,7 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
           <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">No academic years found. Create one under Academics first.</p>
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Select label="Academic Year" options={yearOptions} {...register('academic_year', { required: true })} />
+          <Select label="Academic Year (E.C.)" options={yearOptions} {...register('academic_year', { required: true })} />
           <Select label="Grade" options={GRADES} placeholder={false} {...register('grade_level', { required: true })} />
           <Select label="Quarter" options={QUARTERS} {...register('quarter', { required: true })} />
         </div>
@@ -760,6 +878,8 @@ export default function StudentDetailPage() {
   const [medicalModal, setMedicalModal] = useState(false);
   const [subjectsModal, setSubjectsModal] = useState(false);
   const [editingEnrollmentSubjects, setEditingEnrollmentSubjects] = useState(null);
+  const [enrollmentEditModal, setEnrollmentEditModal] = useState(false);
+  const [editingEnrollment, setEditingEnrollment] = useState(null);
 
   const { data: student, isLoading, isError } = useQuery({
     queryKey: ['students', id, 'profile'],
@@ -816,6 +936,8 @@ export default function StudentDetailPage() {
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
             <span className="flex items-center gap-1">
               <FiBook className="text-primary" />
+              {student.current_enrollment?.academic_year_name || 'No year'}
+              {' · '}
               Grade {student.grade_level || '—'}{student.section ? ` · Section ${student.section}` : ''}
             </span>
             <span className="flex items-center gap-1">
@@ -861,13 +983,14 @@ export default function StudentDetailPage() {
             <DetailRow label="Phone" value={student.phone} />
           </EditableCard>
 
-          <EditableCard title="Academic Information" subtitle="Current enrollment details" onEdit={() => setAcademicModal(true)}>
+          <EditableCard title="Academic Information" subtitle="Synced from current enrollment" onEdit={() => setAcademicModal(true)}>
+            <DetailRow label="Academic Year" value={student.current_enrollment?.academic_year_name || '—'} />
             <DetailRow label="Grade Level" value={student.grade_level ? `Grade ${student.grade_level}` : '—'} />
             <DetailRow label="Section" value={student.section ? `Section ${student.section}` : '—'} />
             <DetailRow label="Status" value={student.status === 'ACTIVE' ? 'Active' : 'Inactive'} />
             <DetailRow label="Enrollment Date" value={formatDate(student.enrollment_date)} />
             <DetailRow label="Previous School" value={student.previous_school} />
-            <DetailRow label="Years Enrolled" value={student.enrollment_records?.length || (student.grade_level ? '1 (current)' : '—')} />
+            <DetailRow label="Years Enrolled" value={student.enrollment_records?.length || '—'} />
           </EditableCard>
 
           <EditableCard title="Address" subtitle="Location details" onEdit={() => setAddressModal(true)}>
@@ -946,7 +1069,12 @@ export default function StudentDetailPage() {
                     </p>
                     {rec.remarks && <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{rec.remarks}</p>}
                   </div>
-                  {rec.is_current && <Badge variant="success">Current</Badge>}
+                  <div className="flex items-center gap-2">
+                    {rec.is_current && <Badge variant="success">Current</Badge>}
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingEnrollment(rec); setEnrollmentEditModal(true); }}>
+                      <FiEdit2 /> Edit
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))
@@ -1036,6 +1164,9 @@ export default function StudentDetailPage() {
                   <div className="rounded-xl bg-primary/10 px-4 py-2 text-center">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Average</p>
                     <p className="text-xl font-black text-primary">{Number(report.overall_average).toFixed(1)}%</p>
+                    {report.rank_display && (
+                      <p className="mt-1 text-xs font-semibold text-gray-600">Rank: {report.rank_display}</p>
+                    )}
                   </div>
                 </div>
                 <Table
@@ -1143,6 +1274,12 @@ export default function StudentDetailPage() {
       <AcademicEditModal isOpen={academicModal} onClose={() => setAcademicModal(false)} student={student} onSuccess={invalidate} />
       <AddressEditModal isOpen={addressModal} onClose={() => setAddressModal(false)} student={student} onSuccess={invalidate} />
       <EnrollmentAddModal isOpen={enrollmentModal} onClose={() => setEnrollmentModal(false)} student={student} onSuccess={invalidate} />
+      <EnrollmentEditModal
+        isOpen={enrollmentEditModal}
+        onClose={() => { setEnrollmentEditModal(false); setEditingEnrollment(null); }}
+        record={editingEnrollment}
+        onSuccess={invalidate}
+      />
       <EnrollmentSubjectsModal
         isOpen={subjectsModal}
         onClose={() => { setSubjectsModal(false); setEditingEnrollmentSubjects(null); }}

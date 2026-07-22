@@ -185,6 +185,8 @@ class StudentGradeReport(BaseModel):
     grade_level = models.PositiveSmallIntegerField()
     quarter = models.PositiveSmallIntegerField(choices=Quarter.choices)
     overall_average = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    class_rank = models.PositiveSmallIntegerField(null=True, blank=True)
+    class_size = models.PositiveSmallIntegerField(null=True, blank=True)
     teacher_remarks = models.TextField(blank=True)
     principal_remarks = models.TextField(blank=True)
 
