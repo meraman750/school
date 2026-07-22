@@ -40,6 +40,7 @@ class Student(BaseModel):
     region = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     grade_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    section = models.CharField(max_length=10, blank=True)
     enrollment_date = models.DateField()
     previous_school = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)

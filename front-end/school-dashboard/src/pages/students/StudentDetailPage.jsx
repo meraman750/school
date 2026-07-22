@@ -45,7 +45,7 @@ export default function StudentDetailPage() {
           <CardHeader title="Academic Info" />
           <div className="space-y-2 text-sm text-gray-600">
             <p>Grade: <strong className="text-gray-900 dark:text-white">{student.grade_level ? `Grade ${student.grade_level}` : '—'}</strong></p>
-            <p>Section: <strong className="text-gray-900 dark:text-white">{student.section || '—'}</strong></p>
+            <p>Section: <strong className="text-gray-900 dark:text-white">{student.section ? `Section ${student.section}` : '—'}</strong></p>
             <p>Status: <strong className="text-gray-900 dark:text-white">{student.status || 'Active'}</strong></p>
           </div>
         </Card>

@@ -34,6 +34,7 @@ export default function CrudModulePage({
   createLabel = 'Add New',
   getDefaultValues,
   preparePayload,
+  allowDelete = true,
 }) {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState({});
@@ -81,7 +82,7 @@ export default function CrudModulePage({
   };
 
   const onSubmit = (formData) => {
-    const payload = preparePayload ? preparePayload(formData) : formData;
+    const payload = preparePayload ? preparePayload(formData, editing) : formData;
     if (editing) {
       updateMutation.mutate({ id: editing.id, data: payload });
     } else {
@@ -107,12 +108,14 @@ export default function CrudModulePage({
       className: 'text-right',
       render: (row) => (
         <div className="flex justify-end gap-1">
-          <button onClick={() => openEdit(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary">
+          <button type="button" onClick={() => openEdit(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary">
             <FiEdit2 />
           </button>
-          <button onClick={() => setDeleteTarget(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600">
-            <FiTrash2 />
-          </button>
+          {allowDelete && (
+            <button type="button" onClick={() => setDeleteTarget(row)} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600">
+              <FiTrash2 />
+            </button>
+          )}
         </div>
       ),
     },
@@ -173,7 +176,13 @@ export default function CrudModulePage({
         title={editing ? `Edit ${title}` : `New ${title}`}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {formFields.map((field) => {
+          {formFields
+            .filter((field) => {
+              if (field.createOnly && editing) return false;
+              if (field.editOnly && !editing) return false;
+              return true;
+            })
+            .map((field) => {
             if (field.type === 'select') {
               return (
                 <Select
