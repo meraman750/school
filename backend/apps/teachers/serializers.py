@@ -174,6 +174,7 @@ class TeacherSalaryInfoSerializer(serializers.ModelSerializer):
 
 class TeacherSalaryPaymentSerializer(serializers.ModelSerializer):
     status_label = serializers.SerializerMethodField()
+    net_salary = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
     class Meta:
         model = TeacherSalaryPayment
@@ -182,27 +183,38 @@ class TeacherSalaryPaymentSerializer(serializers.ModelSerializer):
             'basic_salary', 'allowances', 'deductions', 'net_salary',
             'status', 'status_label', 'payment_date', 'notes', 'created_at',
         )
-        read_only_fields = ('created_at',)
+        read_only_fields = ('created_at', 'net_salary')
 
     def get_status_label(self, obj):
         return dict(TeacherSalaryPayment.Status.choices).get(obj.status, obj.status)
 
-    def validate(self, attrs):
-        basic = attrs.get('basic_salary', getattr(self.instance, 'basic_salary', 0))
-        allowances = attrs.get('allowances', getattr(self.instance, 'allowances', 0))
-        deductions = attrs.get('deductions', getattr(self.instance, 'deductions', 0))
-        attrs['net_salary'] = Decimal(str(basic)) + Decimal(str(allowances)) - Decimal(str(deductions))
-        return attrs
+    def _compute_net_salary(self, data):
+        basic = data.get('basic_salary', getattr(self.instance, 'basic_salary', 0))
+        allowances = data.get('allowances', getattr(self.instance, 'allowances', 0))
+        deductions = data.get('deductions', getattr(self.instance, 'deductions', 0))
+        return Decimal(str(basic)) + Decimal(str(allowances)) - Decimal(str(deductions))
 
     def create(self, validated_data):
         user = self.context['request'].user
         validated_data.pop('created_by', None)
         validated_data.pop('updated_by', None)
+        validated_data['net_salary'] = self._compute_net_salary(validated_data)
         return TeacherSalaryPayment.objects.create(
             created_by=user,
             updated_by=user,
             **validated_data,
         )
+
+    def update(self, instance, validated_data):
+        validated_data.pop('created_by', None)
+        validated_data['updated_by'] = self.context['request'].user
+        merged = {
+            'basic_salary': validated_data.get('basic_salary', instance.basic_salary),
+            'allowances': validated_data.get('allowances', instance.allowances),
+            'deductions': validated_data.get('deductions', instance.deductions),
+        }
+        validated_data['net_salary'] = self._compute_net_salary(merged)
+        return super().update(instance, validated_data)
 
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
