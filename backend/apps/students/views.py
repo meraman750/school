@@ -1,13 +1,19 @@
 from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from rest_framework import viewsets
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsRegistrar, IsStaffMember
 
-from .models import Student, Guardian, MedicalInfo, EmergencyContact, StudentDocument, Admission
+from .models import (
+    Student, Guardian, MedicalInfo, EmergencyContact, StudentDocument, Admission,
+    StudentGradeReport,
+)
 from .serializers import (
     StudentSerializer, GuardianSerializer, MedicalInfoSerializer,
     EmergencyContactSerializer, StudentDocumentSerializer, AdmissionSerializer,
+    StudentProfileSerializer, StudentGradeReportSerializer, StudentGradeReportWriteSerializer,
 )
 
 
@@ -23,6 +29,38 @@ class StudentViewSet(BaseModelViewSet):
         raise MethodNotAllowed(
             'DELETE',
             detail='Students cannot be deleted. Set status to Inactive instead.',
+        )
+
+    @action(detail=True, methods=['get'])
+    def profile(self, request, pk=None):
+        student = Student.objects.prefetch_related(
+            'guardians',
+            'emergency_contacts',
+            'documents',
+            'grade_reports__entries__subject',
+            'grade_reports__academic_year',
+        ).select_related('medical_info').get(pk=pk)
+        serializer = StudentProfileSerializer(student)
+        return Response(serializer.data)
+
+
+class StudentGradeReportViewSet(BaseModelViewSet):
+    queryset = StudentGradeReport.objects.select_related(
+        'student', 'academic_year',
+    ).prefetch_related('entries__subject')
+    permission_classes = [IsStaffMember]
+    filterset_fields = ['student', 'academic_year', 'grade_level', 'quarter']
+    ordering_fields = ['academic_year__start_date', 'quarter', 'created_at']
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return StudentGradeReportWriteSerializer
+        return StudentGradeReportSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            updated_by=self.request.user,
         )
 
 

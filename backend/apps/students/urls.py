@@ -4,10 +4,12 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     StudentViewSet, GuardianViewSet, MedicalInfoViewSet,
     EmergencyContactViewSet, StudentDocumentViewSet, AdmissionViewSet,
+    StudentGradeReportViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'students', StudentViewSet, basename='student')
+router.register(r'grade-reports', StudentGradeReportViewSet, basename='student-grade-report')
 router.register(r'guardians', GuardianViewSet, basename='guardian')
 router.register(r'medical-info', MedicalInfoViewSet, basename='medical-info')
 router.register(r'emergency-contacts', EmergencyContactViewSet, basename='emergency-contact')

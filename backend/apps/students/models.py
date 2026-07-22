@@ -167,3 +167,49 @@ class Admission(BaseModel):
 
     def __str__(self):
         return f'{self.application_number} - {self.applicant_first_name} {self.applicant_last_name}'
+
+
+class StudentGradeReport(BaseModel):
+    class Quarter(models.IntegerChoices):
+        Q1 = 1, 'Quarter 1'
+        Q2 = 2, 'Quarter 2'
+        Q3 = 3, 'Quarter 3'
+        Q4 = 4, 'Quarter 4'
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='grade_reports')
+    academic_year = models.ForeignKey(
+        'academics.AcademicYear',
+        on_delete=models.CASCADE,
+        related_name='student_grade_reports',
+    )
+    grade_level = models.PositiveSmallIntegerField()
+    quarter = models.PositiveSmallIntegerField(choices=Quarter.choices)
+    overall_average = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    teacher_remarks = models.TextField(blank=True)
+    principal_remarks = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-academic_year__start_date', '-quarter']
+        unique_together = ['student', 'academic_year', 'grade_level', 'quarter']
+
+    def __str__(self):
+        return f'{self.student} - {self.academic_year} Q{self.quarter}'
+
+
+class StudentGradeReportEntry(BaseModel):
+    report = models.ForeignKey(StudentGradeReport, on_delete=models.CASCADE, related_name='entries')
+    subject = models.ForeignKey(
+        'academics.Subject',
+        on_delete=models.CASCADE,
+        related_name='grade_report_entries',
+    )
+    score = models.DecimalField(max_digits=5, decimal_places=2)
+    grade_letter = models.CharField(max_length=5, blank=True)
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['subject__name']
+        unique_together = ['report', 'subject']
+
+    def __str__(self):
+        return f'{self.subject} - {self.score}'
