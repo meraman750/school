@@ -141,7 +141,7 @@ export default function About() {
             <Badge className="mb-4">Facilities</Badge>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">World-Class Campus</h2>
           </motion.div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FALLBACK_FACILITIES.map((facility, i) => (
               <motion.div key={i} {...fadeUp} transition={{ delay: i * 0.05 }}>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">

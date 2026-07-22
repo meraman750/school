@@ -49,27 +49,27 @@ export const FALLBACK_SCHOOL_INFO = {
   name: SCHOOL_NAME,
   tagline: SCHOOL_TAGLINE,
   description:
-    'Biruk Academy Primary School is a premier educational institution in Addis Ababa, Ethiopia, dedicated to nurturing young minds through holistic education, Ethiopian values, and global standards of excellence.',
-  address: 'Bole Sub-City, Woreda 03, Addis Ababa, Ethiopia',
-  phone: '+251 11 123 4567',
+    'Biruk Academy Primary School is a premier educational institution in Akaki Kality, Addis Ababa, Ethiopia, dedicated to nurturing young minds through holistic education, Ethiopian values, and global standards of excellence.',
+  address: 'Akaki Kality Sub-City, Woreda 03, Addis Ababa, Ethiopia',
+  phone: '+251 97 906 1639',
   email: 'info@birukacademy.edu.et',
   founded: '2008',
   students: '850+',
   teachers: '45+',
-  principal_name: 'Dr. Selam Bekele',
+  principal_name: 'Mr. Kumelachew',
   principal_message:
-    'At Biruk Academy, we believe every child carries unique gifts waiting to be discovered. Our mission is to create a safe, inspiring environment where Ethiopian heritage meets modern learning — preparing students not just for exams, but for life.',
+    'At Biruk Academy, we believe every child carries unique gifts waiting to be discovered. Our mission is to create a safe, inspiring environment where Ethiopian heritage meets modern learning, preparing students not just for exams, but for life.',
   mission:
     'To provide quality primary education that develops confident, compassionate, and capable learners rooted in Ethiopian culture and prepared for a global future.',
   vision:
     'To be Addis Ababa\'s most trusted primary school, recognized for academic excellence, character development, and community impact.',
   map_embed_url:
-    'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126748.60912474377!2d38.6963!3d8.9806!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x164b85e74e77e269%3A0x5e5e5e5e5e5e5e5e!2sAddis%20Ababa!5e0!3m2!1sen!2set!4v1234567890',
+    'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d63057.21688596072!2d38.710104717499995!3d8.965139519857825!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x164b838ea5307d4f%3A0x900604f8b830febf!2sBiruk%20Academy!5e0!3m2!1sen!2set!4v1784632428295!5m2!1sen!2set',
 }
 
 export const FALLBACK_ACHIEVEMENTS = [
-  { title: 'National Excellence Award', year: '2024', description: 'Recognized for outstanding primary education in Ethiopia.' },
-  { title: '100% Grade 8 Pass Rate', year: '2023', description: 'All graduating students passed regional examinations.' },
+  { title: 'National Excellence Award', year: '2024', description: 'Outstanding primary education in Addis Ababa.' },
+  { title: '99% Grade 8 Pass Rate', year: '2023', description: 'All graduating students passed regional examinations.' },
   { title: 'Green School Certification', year: '2022', description: 'Awarded for environmental sustainability initiatives.' },
   { title: 'STEM Innovation Hub', year: '2021', description: 'Established modern science and technology laboratory.' },
 ]
@@ -99,20 +99,19 @@ export const FALLBACK_CORE_VALUES = [
 ]
 
 export const FALLBACK_LEADERSHIP = [
-  { name: 'Dr. Selam Bekele', role: 'Principal', bio: '20+ years in education leadership across Ethiopia.' },
+  { name: 'Mr. Temesgen', role: 'Principal', bio: '20+ years in education leadership across Ethiopia.' },
   { name: 'Ato Dawit Tesfaye', role: 'Vice Principal', bio: 'Specialist in curriculum development and teacher training.' },
-  { name: 'W/ro Hanna Girma', role: 'Head of Academics', bio: 'Expert in primary education and student assessment.' },
+  { name: 'Mr. Kumelachew', role: 'Head of Academics', bio: 'Expert in primary education and student assessment.' },
   { name: 'Ato Michael Assefa', role: 'Student Affairs Director', bio: 'Passionate about student wellbeing and extracurricular programs.' },
 ]
 
 export const FALLBACK_FACILITIES = [
-  'Modern Smart Classrooms',
+  'Modern Classrooms',
   'Well-Stocked Library',
   'Science & Computer Lab',
-  'Sports Field & Gymnasium',
-  'Art & Music Studio',
+  'Sports Field and Secure Playground',
+  // 'Art & Music Studio',
   'Cafeteria & Health Clinic',
-  'Secure Playground',
   'Transportation Service',
 ]
 

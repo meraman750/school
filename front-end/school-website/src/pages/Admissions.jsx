@@ -204,7 +204,7 @@ export default function Admissions() {
         </div>
       </section>
 
-      <section className="section-padding">
+      {/* <section className="section-padding">
         <div className="container-wide mx-auto text-center">
           <motion.div {...fadeUp}>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Ready to Apply?</h2>
@@ -215,7 +215,7 @@ export default function Admissions() {
             </div>
           </motion.div>
         </div>
-      </section>
+      </section> */}
     </>
   )
 }

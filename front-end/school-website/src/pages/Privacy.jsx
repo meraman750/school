@@ -9,7 +9,7 @@ export default function Privacy() {
       <section className="section-padding">
         <div className="container-wide mx-auto max-w-3xl">
           <Card className="prose prose-gray dark:prose-invert max-w-none">
-            <p className="text-sm text-gray-500 mb-8">Last updated: January 1, 2025</p>
+            <p className="text-sm text-gray-500 mb-8">Last updated: July 1, 2026</p>
 
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-8 mb-4">1. Information We Collect</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">

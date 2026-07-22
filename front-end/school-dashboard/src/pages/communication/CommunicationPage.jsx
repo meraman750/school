@@ -26,7 +26,7 @@ export default function CommunicationPage() {
   return (
     <CrudModulePage
       title="Communication"
-      description="Send announcements, emails, and messages to students and parents"
+      description="Send announcements, emails, and messages to students and staff"
       queryKey={['communication']}
       api={communicationApi}
       columns={columns}

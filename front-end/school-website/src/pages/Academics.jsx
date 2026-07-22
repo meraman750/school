@@ -19,19 +19,17 @@ const GRADE_LEVELS = [
 ]
 
 const CURRICULUM = [
-  { subject: 'Amharic Language', description: 'Reading, writing, and Ethiopian literature' },
-  { subject: 'English Language', description: 'Communication skills and global literature' },
+  { subject: 'Language', description: 'Reading, writing, and Communication skills global literature' },
   { subject: 'Mathematics', description: 'Problem-solving from basics to algebra' },
   { subject: 'Science', description: 'Hands-on experiments and natural sciences' },
   { subject: 'Social Studies', description: 'Ethiopian history, geography, and civics' },
   { subject: 'ICT & Computer', description: 'Digital literacy and coding basics' },
   { subject: 'Physical Education', description: 'Sports, fitness, and teamwork' },
-  { subject: 'Arts & Music', description: 'Creative expression and cultural arts' },
 ]
 
 const TEACHING_APPROACH = [
   { title: 'Student-Centered Learning', description: 'Lessons designed around each child\'s pace and interests.', icon: FaUsers },
-  { title: 'Interactive Classrooms', description: 'Smart boards, group activities, and collaborative projects.', icon: FaLaptop },
+  { title: 'Interactive Classrooms', description: 'Modern boards, group activities, and collaborative projects.', icon: FaLaptop },
   { title: 'Continuous Assessment', description: 'Regular feedback to track progress and identify needs.', icon: FaBook },
 ]
 
@@ -96,7 +94,7 @@ export default function Academics() {
             <Badge className="mb-4">Curriculum</Badge>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects We Offer</h2>
           </motion.div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {CURRICULUM.map((item, i) => (
               <motion.div key={i} {...fadeUp} transition={{ delay: i * 0.05 }}>
                 <Card hover className="h-full">

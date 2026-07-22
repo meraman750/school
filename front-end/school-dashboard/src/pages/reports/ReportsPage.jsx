@@ -9,8 +9,6 @@ import { exportReport } from '../../services/api';
 const REPORT_TYPES = [
   { value: 'students', label: 'Students Report' },
   { value: 'teachers', label: 'Teachers Report' },
-  { value: 'attendance', label: 'Attendance Report' },
-  { value: 'finance', label: 'Finance Report' },
 ];
 
 export default function ReportsPage() {

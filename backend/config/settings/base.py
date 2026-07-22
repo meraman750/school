@@ -28,10 +28,7 @@ INSTALLED_APPS = [
     'apps.authentication',
     'apps.students',
     'apps.teachers',
-    'apps.parents',
     'apps.academics',
-    'apps.attendance',
-    'apps.finance',
     'apps.library',
     'apps.communication',
     'apps.website',
@@ -151,7 +148,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000',
+    default='http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001',
     cast=Csv(),
 )
 CORS_ALLOW_CREDENTIALS = True

@@ -62,9 +62,9 @@ export default function Header() {
                 {theme === 'dark' ? <FiSun className="text-xl" /> : <FiMoon className="text-xl" />}
               </button>
 
-              <a href={DASHBOARD_LOGIN_URL} className="hidden sm:block">
+              {/* <a href={DASHBOARD_LOGIN_URL} className="hidden sm:block">
                 <Button size="sm" variant="outline">Dashboard</Button>
-              </a>
+              </a> */}
 
               <button
                 type="button"

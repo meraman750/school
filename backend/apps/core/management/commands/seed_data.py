@@ -7,7 +7,6 @@ from django.utils import timezone
 from apps.academics.models import AcademicYear, Term, Department, Subject, SchoolClass, Section, Room
 from apps.students.models import Student, Guardian, MedicalInfo
 from apps.teachers.models import Teacher, TeacherQualification
-from apps.finance.models import FeeStructure
 from apps.website.models import SchoolInfo, BlogPost, Event, FAQ
 from apps.settings_app.models import SchoolProfile, AcademicSettings, GradingSettings
 from apps.library.models import BookCategory, Book
@@ -178,20 +177,6 @@ class Command(BaseCommand):
                     student=student,
                     defaults={'allergies': 'None'},
                 )
-
-        FeeStructure.objects.get_or_create(
-            name='Grade 5 Fees 2025/2026',
-            academic_year=academic_year,
-            school_class=school_class,
-            defaults={
-                'tuition_fee': 15000,
-                'registration_fee': 2000,
-                'transport_fee': 3000,
-                'library_fee': 500,
-                'other_fees': 1000,
-                'is_active': True,
-            },
-        )
 
         SchoolInfo.objects.get_or_create(
             name='Biruk Academy Primary School',

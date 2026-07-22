@@ -51,7 +51,7 @@ export default function Footer() {
               <span className="font-bold text-white">{SCHOOL_NAME}</span>
             </div>
             <p className="text-sm leading-relaxed mb-6">{info.description?.slice(0, 120)}...</p>
-            <div className="flex gap-3">
+            {/* <div className="flex gap-3">
               {[
                 { icon: FaFacebook, url: 'https://facebook.com' },
                 { icon: FaTwitter, url: 'https://twitter.com' },
@@ -69,7 +69,7 @@ export default function Footer() {
                   <Icon className="text-sm" />
                 </a>
               ))}
-            </div>
+            </div> */}
           </div>
 
           <div>

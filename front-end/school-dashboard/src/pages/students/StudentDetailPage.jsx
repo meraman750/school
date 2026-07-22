@@ -55,7 +55,6 @@ export default function StudentDetailPage() {
           <div className="space-y-2 text-sm text-gray-600">
             <p>Enrolled: <strong className="text-gray-900 dark:text-white">{formatDate(student.enrollment_date || student.created_at)}</strong></p>
             <p>GPA: <strong className="text-gray-900 dark:text-white">{student.gpa || '—'}</strong></p>
-            <p>Attendance: <strong className="text-gray-900 dark:text-white">{student.attendance_rate ? `${student.attendance_rate}%` : '—'}</strong></p>
           </div>
         </Card>
       </div>

@@ -77,10 +77,7 @@ docker-compose up --build
 | Authentication | JWT, RBAC (11 roles), password reset |
 | Students | Profiles, admission, guardians, documents |
 | Teachers | Profiles, qualifications, leave, performance |
-| Parents | Accounts, children, communication |
 | Academics | Classes, subjects, exams, grades, timetables |
-| Attendance | Student & teacher attendance, analytics |
-| Finance | Invoices, payments, scholarships |
 | Library | Books, borrowing, fines |
 | Transport | Routes, vehicles, assignments |
 | Inventory | Assets, supplies, stock |

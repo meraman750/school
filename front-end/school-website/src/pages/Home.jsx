@@ -82,14 +82,14 @@ export default function Home() {
                 <div className="w-full aspect-square max-w-md mx-auto rounded-3xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
                   <FaGraduationCapLarge />
                 </div>
-                <div className="absolute -bottom-4 -left-4 bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-xl">
+                {/* <div className="absolute -bottom-4 -left-4 bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-xl">
                   <p className="text-2xl font-bold text-primary">{info.students || '850+'}</p>
                   <p className="text-sm text-gray-500">Happy Students</p>
-                </div>
-                <div className="absolute -top-4 -right-4 bg-secondary rounded-2xl p-4 shadow-xl">
+                </div> */}
+                {/* <div className="absolute -top-4 -right-4 bg-secondary rounded-2xl p-4 shadow-xl">
                   <p className="text-2xl font-bold text-gray-900">{info.founded || '2008'}</p>
                   <p className="text-sm text-gray-700">Est. Year</p>
-                </div>
+                </div> */}
               </div>
             </motion.div>
           </div>

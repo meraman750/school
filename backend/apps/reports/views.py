@@ -12,8 +12,6 @@ from rest_framework.views import APIView
 from apps.core.permissions import IsStaffMember
 from apps.students.models import Student
 from apps.teachers.models import Teacher
-from apps.finance.models import Invoice, Payment
-from apps.attendance.models import StudentAttendance
 
 
 class StudentReportView(APIView):
@@ -102,63 +100,3 @@ class TeacherReportView(APIView):
         if export_format == 'pdf':
             return view._export_pdf(teachers, 'Teachers Report')
         return Response({'success': True, 'data': list(teachers)})
-
-
-class AttendanceReportView(APIView):
-    permission_classes = [IsStaffMember]
-
-    def get(self, request):
-        export_format = request.query_params.get('format', 'json')
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-
-        qs = StudentAttendance.objects.select_related('student').all()
-        if start_date:
-            qs = qs.filter(date__gte=start_date)
-        if end_date:
-            qs = qs.filter(date__lte=end_date)
-
-        records = qs.values(
-            'student__admission_number', 'student__first_name', 'student__last_name',
-            'date', 'status', 'remarks',
-        )
-        view = StudentReportView()
-        if export_format == 'csv':
-            return view._export_csv(records, 'attendance_report.csv')
-        if export_format == 'excel':
-            return view._export_excel(records, 'Attendance Report')
-        if export_format == 'pdf':
-            return view._export_pdf(records, 'Attendance Report')
-        return Response({'success': True, 'data': list(records)})
-
-
-class FinanceReportView(APIView):
-    permission_classes = [IsStaffMember]
-
-    def get(self, request):
-        export_format = request.query_params.get('format', 'json')
-        report_type = request.query_params.get('type', 'invoices')
-
-        if report_type == 'payments':
-            data = Payment.objects.all().values(
-                'payment_reference', 'invoice__invoice_number', 'amount',
-                'payment_method', 'payment_date', 'status',
-            )
-            filename = 'payments_report'
-            title = 'Payments Report'
-        else:
-            data = Invoice.objects.all().values(
-                'invoice_number', 'student__admission_number',
-                'total_amount', 'amount_paid', 'status', 'issue_date', 'due_date',
-            )
-            filename = 'invoices_report'
-            title = 'Invoices Report'
-
-        view = StudentReportView()
-        if export_format == 'csv':
-            return view._export_csv(data, f'{filename}.csv')
-        if export_format == 'excel':
-            return view._export_excel(data, title)
-        if export_format == 'pdf':
-            return view._export_pdf(data, title)
-        return Response({'success': True, 'data': list(data)})

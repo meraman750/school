@@ -124,7 +124,7 @@ export default function Contact() {
                 </div>
               </Card>
 
-              <Card>
+              {/* <Card>
                 <h3 className="font-bold text-gray-900 dark:text-white mb-4">Follow Us</h3>
                 <div className="flex gap-3">
                   {SOCIAL.map(({ icon: Icon, url, label }) => (
@@ -140,7 +140,7 @@ export default function Contact() {
                     </a>
                   ))}
                 </div>
-              </Card>
+              </Card> */}
             </motion.div>
           </div>
         </div>

@@ -107,8 +107,6 @@ function createResourceService(basePath) {
 
 export const studentsApi = createResourceService('students/students');
 export const teachersApi = createResourceService('teachers/teachers');
-export const parentsApi = createResourceService('parents/profiles');
-export const attendanceApi = createResourceService('attendance/students');
 export const libraryApi = createResourceService('library/books');
 export const communicationApi = createResourceService('communication/announcements');
 export const transportApi = createResourceService('transport/routes');
@@ -128,12 +126,6 @@ export const academicsSubApi = {
   assignments: createResourceService('academics/assignments'),
   exams: createResourceService('academics/examinations'),
   grades: createResourceService('academics/grades'),
-};
-
-export const financeSubApi = {
-  invoices: createResourceService('finance/invoices'),
-  payments: createResourceService('finance/payments'),
-  scholarships: createResourceService('finance/scholarships'),
 };
 
 export const exportReport = async (type, params = {}) => {
