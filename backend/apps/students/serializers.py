@@ -187,6 +187,7 @@ class StudentGradeReportWriteSerializer(serializers.ModelSerializer):
             'student', 'academic_year', 'grade_level', 'quarter',
             'teacher_remarks', 'principal_remarks', 'entries',
         )
+        validators = []
 
     def validate_grade_level(self, value):
         if value < 1 or value > 8:
@@ -202,11 +203,23 @@ class StudentGradeReportWriteSerializer(serializers.ModelSerializer):
         entries_data = validated_data.pop('entries')
         request = self.context.get('request')
         user = request.user if request else None
-        report = StudentGradeReport.objects.create(
-            created_by=user,
-            updated_by=user,
-            **validated_data,
+
+        report, created = StudentGradeReport.objects.update_or_create(
+            student=validated_data['student'],
+            academic_year=validated_data['academic_year'],
+            grade_level=validated_data['grade_level'],
+            quarter=validated_data['quarter'],
+            defaults={
+                'teacher_remarks': validated_data.get('teacher_remarks', ''),
+                'principal_remarks': validated_data.get('principal_remarks', ''),
+                'updated_by': user,
+            },
         )
+        if created:
+            report.created_by = user
+            report.save(update_fields=['created_by'])
+
+        report.entries.all().delete()
         total = Decimal('0')
         for entry_data in entries_data:
             score = entry_data['score']
@@ -252,6 +265,12 @@ class StudentEnrollmentRecordSerializer(serializers.ModelSerializer):
             'is_current', 'remarks', 'subjects', 'subject_ids', 'created_at',
         )
         read_only_fields = ('created_at',)
+        validators = []
+
+    def validate_is_current(self, value):
+        if isinstance(value, str):
+            return value.lower() in ('true', '1', 'on', 'yes')
+        return bool(value)
 
     def get_subjects(self, obj):
         return get_subjects_for_enrollment(obj)

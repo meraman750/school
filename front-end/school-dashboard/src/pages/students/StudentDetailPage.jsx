@@ -64,8 +64,24 @@ const GUARDIAN_RELATIONSHIPS = [
 function getApiError(err, fallback = 'Something went wrong') {
   const data = err?.response?.data;
   if (!data) return fallback;
+
+  if (data.error?.message) return data.error.message;
+  if (data.error?.details) {
+    const details = data.error.details;
+    if (typeof details.detail === 'string') return details.detail;
+    if (Array.isArray(details.non_field_errors) && details.non_field_errors[0]) {
+      return String(details.non_field_errors[0]);
+    }
+    const key = Object.keys(details)[0];
+    if (key) {
+      const val = details[key];
+      if (Array.isArray(val) && val[0]) return `${key}: ${val[0]}`;
+      if (typeof val === 'string') return val;
+    }
+  }
+
   if (typeof data.detail === 'string') return data.detail;
-  if (Array.isArray(data.non_field_errors) && data.non_field_errors[0]) return data.non_field_errors[0];
+  if (Array.isArray(data.non_field_errors) && data.non_field_errors[0]) return String(data.non_field_errors[0]);
   const key = Object.keys(data)[0];
   if (key) {
     const val = data[key];
@@ -289,7 +305,7 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
       grade_level: Number(data.grade_level),
       section: data.section || '',
       start_date: data.start_date || null,
-      is_current: !!data.is_current,
+      is_current: data.is_current === true || data.is_current === 'on',
       remarks: data.remarks || '',
       subject_ids: selectedSubjects,
     }),
