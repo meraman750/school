@@ -280,6 +280,12 @@ class StudentEnrollmentRecordSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Grade must be between 1 and 8.')
         return value
 
+    def validate(self, attrs):
+        for field in ('start_date', 'end_date'):
+            if attrs.get(field) == '':
+                attrs[field] = None
+        return attrs
+
     def _sync_subjects(self, record, subject_ids):
         if subject_ids is None:
             return
