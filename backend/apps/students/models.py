@@ -263,3 +263,23 @@ class StudentNote(BaseModel):
 
     def __str__(self):
         return f'{self.title} ({self.note_type})'
+
+
+class StudentEnrollmentSubject(BaseModel):
+    enrollment = models.ForeignKey(
+        StudentEnrollmentRecord,
+        on_delete=models.CASCADE,
+        related_name='enrolled_subjects',
+    )
+    subject = models.ForeignKey(
+        'academics.Subject',
+        on_delete=models.CASCADE,
+        related_name='student_enrollment_subjects',
+    )
+
+    class Meta:
+        unique_together = ['enrollment', 'subject']
+        ordering = ['subject__name']
+
+    def __str__(self):
+        return f'{self.subject} - {self.enrollment}'

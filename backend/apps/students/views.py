@@ -36,12 +36,14 @@ class StudentViewSet(BaseModelViewSet):
     @action(detail=True, methods=['get'])
     def profile(self, request, pk=None):
         student = Student.objects.prefetch_related(
+            'guardians',
             'documents',
             'grade_reports__entries__subject',
             'grade_reports__academic_year',
             'enrollment_records__academic_year',
+            'enrollment_records__enrolled_subjects__subject',
             'student_notes__academic_year',
-        ).get(pk=pk)
+        ).select_related('medical_info').get(pk=pk)
         serializer = StudentProfileSerializer(student)
         return Response(serializer.data)
 

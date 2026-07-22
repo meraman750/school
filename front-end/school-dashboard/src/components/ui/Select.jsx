@@ -17,7 +17,9 @@ export default function Select({
         className={`w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white ${error ? 'border-red-500' : ''} ${className}`}
         {...props}
       >
-        {placeholder && <option value="">{placeholder}</option>}
+        {placeholder !== false && (
+          <option value="">{placeholder || 'Select...'}</option>
+        )}
         {options.map((opt) => (
           <option key={opt.value ?? opt} value={opt.value ?? opt}>
             {opt.label ?? opt}

@@ -9,7 +9,7 @@ from apps.academics.models import AcademicYear, Curriculum, Subject
 from .models import (
     Student, Guardian, MedicalInfo, EmergencyContact, StudentDocument, Admission,
     StudentGradeReport, StudentGradeReportEntry,
-    StudentEnrollmentRecord, StudentNote,
+    StudentEnrollmentRecord, StudentNote, StudentEnrollmentSubject,
 )
 
 
@@ -200,7 +200,8 @@ class StudentGradeReportWriteSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         entries_data = validated_data.pop('entries')
-        user = self.context['request'].user
+        request = self.context.get('request')
+        user = request.user if request else None
         report = StudentGradeReport.objects.create(
             created_by=user,
             updated_by=user,
@@ -222,62 +223,103 @@ class StudentGradeReportWriteSerializer(serializers.ModelSerializer):
         return report
 
 
+def get_subjects_for_enrollment(enrollment):
+    enrolled = enrollment.enrolled_subjects.select_related('subject').all()
+    if enrolled.exists():
+        return [{
+            'id': item.subject_id,
+            'name': item.subject.name,
+            'code': item.subject.code,
+        } for item in enrolled]
+    return get_subjects_for_grade(enrollment.grade_level)
+
+
 class StudentEnrollmentRecordSerializer(serializers.ModelSerializer):
     academic_year_name = serializers.CharField(source='academic_year.name', read_only=True)
     subjects = serializers.SerializerMethodField()
+    subject_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_empty=True,
+    )
 
     class Meta:
         model = StudentEnrollmentRecord
         fields = (
             'id', 'student', 'academic_year', 'academic_year_name',
             'grade_level', 'section', 'start_date', 'end_date',
-            'is_current', 'remarks', 'subjects', 'created_at',
+            'is_current', 'remarks', 'subjects', 'subject_ids', 'created_at',
         )
         read_only_fields = ('created_at',)
 
     def get_subjects(self, obj):
-        return get_subjects_for_grade(obj.grade_level)
+        return get_subjects_for_enrollment(obj)
 
     def validate_grade_level(self, value):
         if value < 1 or value > 8:
             raise serializers.ValidationError('Grade must be between 1 and 8.')
         return value
 
+    def _sync_subjects(self, record, subject_ids):
+        if subject_ids is None:
+            return
+        record.enrolled_subjects.all().delete()
+        for subject_id in subject_ids:
+            StudentEnrollmentSubject.objects.create(
+                enrollment=record,
+                subject_id=subject_id,
+            )
+
+    def _apply_current_enrollment(self, student, validated_data):
+        if not validated_data.get('is_current'):
+            return
+        StudentEnrollmentRecord.objects.filter(
+            student=student, is_current=True,
+        ).exclude(
+            academic_year=validated_data['academic_year'],
+        ).update(is_current=False)
+        student.grade_level = validated_data['grade_level']
+        student.section = validated_data.get('section', '')
+        student.save(update_fields=['grade_level', 'section', 'updated_at'])
+
     def create(self, validated_data):
         user = self.context['request'].user
-        student = validated_data['student']
-        is_current = validated_data.get('is_current', False)
+        subject_ids = validated_data.pop('subject_ids', None)
+        student = validated_data.pop('student')
+        academic_year = validated_data.pop('academic_year')
 
-        if is_current:
-            StudentEnrollmentRecord.objects.filter(
-                student=student, is_current=True,
-            ).update(is_current=False)
-            student.grade_level = validated_data['grade_level']
-            student.section = validated_data.get('section', '')
-            student.save(update_fields=['grade_level', 'section', 'updated_at'])
+        self._apply_current_enrollment(student, {**validated_data, 'student': student, 'academic_year': academic_year})
 
-        return StudentEnrollmentRecord.objects.create(
-            created_by=user,
-            updated_by=user,
-            **validated_data,
+        defaults = {**validated_data, 'updated_by': user}
+        record, created = StudentEnrollmentRecord.objects.update_or_create(
+            student=student,
+            academic_year=academic_year,
+            defaults=defaults,
         )
+        if created:
+            record.created_by = user
+            record.save(update_fields=['created_by'])
+        self._sync_subjects(record, subject_ids)
+        return record
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
+        subject_ids = validated_data.pop('subject_ids', None)
         is_current = validated_data.get('is_current', instance.is_current)
 
-        if is_current and not instance.is_current:
+        if is_current:
             StudentEnrollmentRecord.objects.filter(
                 student=instance.student, is_current=True,
             ).exclude(pk=instance.pk).update(is_current=False)
-
-        if is_current:
             instance.student.grade_level = validated_data.get('grade_level', instance.grade_level)
             instance.student.section = validated_data.get('section', instance.section)
             instance.student.save(update_fields=['grade_level', 'section', 'updated_at'])
 
         validated_data['updated_by'] = user
-        return super().update(instance, validated_data)
+        record = super().update(instance, validated_data)
+        self._sync_subjects(record, subject_ids)
+        return record
 
 
 class StudentNoteSerializer(serializers.ModelSerializer):
@@ -299,6 +341,8 @@ class StudentNoteSerializer(serializers.ModelSerializer):
 
 class StudentProfileSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
+    guardians = GuardianSerializer(many=True, read_only=True)
+    medical_info = MedicalInfoSerializer(read_only=True)
     documents = StudentDocumentSerializer(many=True, read_only=True)
     grade_reports = StudentGradeReportSerializer(many=True, read_only=True)
     enrollment_records = StudentEnrollmentRecordSerializer(many=True, read_only=True)
@@ -313,27 +357,36 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             'gender', 'date_of_birth', 'nationality', 'blood_group', 'photo',
             'email', 'phone', 'address', 'city', 'region', 'status', 'grade_level', 'section',
             'enrollment_date', 'previous_school', 'notes', 'created_at',
-            'documents', 'grade_reports', 'enrollment_records', 'student_notes',
-            'subjects', 'subject_history',
+            'guardians', 'medical_info', 'documents', 'grade_reports', 'enrollment_records',
+            'student_notes', 'subjects', 'subject_history',
         )
 
     def get_subjects(self, obj):
+        current = obj.enrollment_records.filter(is_current=True).prefetch_related(
+            'enrolled_subjects__subject',
+        ).first()
+        if current:
+            return get_subjects_for_enrollment(current)
         return get_subjects_for_grade(obj.grade_level)
 
     def get_subject_history(self, obj):
-        records = obj.enrollment_records.select_related('academic_year').all()
+        records = obj.enrollment_records.select_related('academic_year').prefetch_related(
+            'enrolled_subjects__subject',
+        ).all()
         history = []
         for rec in records:
             history.append({
+                'enrollment_id': rec.id,
                 'academic_year_id': rec.academic_year_id,
                 'academic_year_name': rec.academic_year.name,
                 'grade_level': rec.grade_level,
                 'section': rec.section,
                 'is_current': rec.is_current,
-                'subjects': get_subjects_for_grade(rec.grade_level),
+                'subjects': get_subjects_for_enrollment(rec),
             })
         if not history and obj.grade_level:
             history.append({
+                'enrollment_id': None,
                 'academic_year_id': None,
                 'academic_year_name': 'Current enrollment',
                 'grade_level': obj.grade_level,
@@ -346,6 +399,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             key = (report.academic_year_id, report.grade_level)
             if key not in report_years:
                 report_years[key] = {
+                    'enrollment_id': None,
                     'academic_year_id': report.academic_year_id,
                     'academic_year_name': report.academic_year.name,
                     'grade_level': report.grade_level,
