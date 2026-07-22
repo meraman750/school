@@ -67,6 +67,44 @@ def sync_student_from_current_enrollment(student):
     student.save(update_fields=['grade_level', 'section', 'updated_at'])
 
 
+def get_current_academic_year():
+    return (
+        AcademicYear.objects.filter(is_current=True, is_deleted=False).first()
+        or AcademicYear.objects.filter(is_deleted=False).order_by('-start_date').first()
+    )
+
+
+def create_initial_enrollment(student, user=None):
+    """Create the first current enrollment when a new student is registered."""
+    if not student.grade_level:
+        return None
+    if StudentEnrollmentRecord.objects.filter(student=student).exists():
+        return None
+
+    academic_year = get_current_academic_year()
+    if not academic_year:
+        return None
+
+    record = StudentEnrollmentRecord.objects.create(
+        student=student,
+        academic_year=academic_year,
+        grade_level=student.grade_level,
+        section=student.section or '',
+        start_date=student.enrollment_date,
+        is_current=True,
+        created_by=user,
+        updated_by=user,
+    )
+
+    for subject in get_subjects_for_grade(student.grade_level):
+        StudentEnrollmentSubject.objects.create(
+            enrollment=record,
+            subject_id=subject['id'],
+        )
+
+    return record
+
+
 def get_subjects_for_grade(grade_level):
     if not grade_level:
         return []
@@ -148,6 +186,20 @@ class StudentSerializer(serializers.ModelSerializer):
                 attrs['status'] = Student.Status.ACTIVE
             attrs.setdefault('email', '')
         return attrs
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        user = request.user if request else None
+        validated_data.pop('created_by', None)
+        validated_data.pop('updated_by', None)
+
+        student = Student.objects.create(
+            created_by=user,
+            updated_by=user,
+            **validated_data,
+        )
+        create_initial_enrollment(student, user)
+        return student
 
 
 class GuardianSerializer(serializers.ModelSerializer):
