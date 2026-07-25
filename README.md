@@ -82,7 +82,6 @@ docker-compose up --build
 | Transport | Routes, vehicles, assignments |
 | Inventory | Assets, supplies, stock |
 | HR | Employees, payroll, leave |
-| Communication | Announcements, notifications |
 | Documents | File management |
 | Reports | PDF, Excel, CSV exports |
 | Website | Public CMS content |

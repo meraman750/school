@@ -30,7 +30,6 @@ INSTALLED_APPS = [
     'apps.teachers',
     'apps.academics',
     'apps.library',
-    'apps.communication',
     'apps.website',
     'apps.transport',
     'apps.inventory',

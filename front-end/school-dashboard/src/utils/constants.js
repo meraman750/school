@@ -18,7 +18,6 @@ export const MODULES = [
   { key: 'transport', label: 'Transport', path: '/transport', icon: 'truck' },
   { key: 'inventory', label: 'Inventory', path: '/inventory', icon: 'package' },
   { key: 'hr', label: 'HR', path: '/hr', icon: 'briefcase' },
-  { key: 'communication', label: 'Communication', path: '/communication', icon: 'message' },
   { key: 'documents', label: 'Documents', path: '/documents', icon: 'folder' },
   { key: 'reports', label: 'Reports', path: '/reports', icon: 'barChart' },
   { key: 'settings', label: 'Settings', path: '/settings', icon: 'settings' },

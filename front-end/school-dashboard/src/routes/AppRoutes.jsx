@@ -44,8 +44,6 @@ import InventoryPage from '../pages/inventory/InventoryPage';
 
 import HRPage from '../pages/hr/HRPage';
 
-import CommunicationPage from '../pages/communication/CommunicationPage';
-
 import DocumentsPage from '../pages/documents/DocumentsPage';
 
 import ReportsPage from '../pages/reports/ReportsPage';
@@ -149,8 +147,6 @@ export default function AppRoutes() {
           <Route path="inventory" element={<RoleGuard moduleKey="inventory"><InventoryPage /></RoleGuard>} />
 
           <Route path="hr" element={<RoleGuard moduleKey="hr"><HRPage /></RoleGuard>} />
-
-          <Route path="communication" element={<RoleGuard moduleKey="communication"><CommunicationPage /></RoleGuard>} />
 
           <Route path="documents" element={<RoleGuard moduleKey="documents"><DocumentsPage /></RoleGuard>} />
 
