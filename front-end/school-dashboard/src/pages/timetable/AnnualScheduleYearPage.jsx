@@ -12,6 +12,7 @@ import Select from '../../components/ui/Select';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import Table from '../../components/ui/Table';
 import Textarea from '../../components/ui/Textarea';
+import AnnualScheduleTimeline, { AnnualEventDetailModal } from '../../components/timetable/AnnualScheduleTimeline';
 import usePagination from '../../hooks/usePagination';
 import {
   useCreateMutation, useDeleteMutation, useListQuery, useUpdateMutation,
@@ -105,6 +106,7 @@ export default function AnnualScheduleYearPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [detailEvent, setDetailEvent] = useState(null);
   const { queryParams } = usePagination();
 
   const { data: years = [] } = useQuery({
@@ -217,6 +219,8 @@ export default function AnnualScheduleYearPage() {
   ];
 
   const yearName = year?.name || fallbackYear?.name || 'Academic Year';
+  const yearRecord = year || fallbackYear;
+  const events = data?.results || [];
 
   return (
     <div className="space-y-6">
@@ -243,16 +247,33 @@ export default function AnnualScheduleYearPage() {
         <TableSkeleton />
       ) : isError ? (
         <EmptyState title="Failed to load events" description="Please try again." />
-      ) : data?.results?.length === 0 ? (
-        <EmptyState
-          title="No events yet"
-          description={`Add the first event for ${yearName}.`}
-          actionLabel="Add Event"
-          onAction={() => { setEditing(null); setModalOpen(true); }}
-        />
       ) : (
-        <Table columns={columns} data={data?.results || []} />
+        <>
+          <AnnualScheduleTimeline
+            events={events}
+            yearRecord={yearRecord}
+            onEventClick={setDetailEvent}
+          />
+
+          {events.length === 0 ? (
+            <EmptyState
+              title="No events yet"
+              description={`Add the first event for ${yearName}.`}
+              actionLabel="Add Event"
+              onAction={() => { setEditing(null); setModalOpen(true); }}
+            />
+          ) : (
+            <Table columns={columns} data={events} />
+          )}
+        </>
       )}
+
+      <AnnualEventDetailModal
+        event={detailEvent}
+        isOpen={Boolean(detailEvent)}
+        onClose={() => setDetailEvent(null)}
+        onEdit={(ev) => { setEditing(ev); setModalOpen(true); }}
+      />
 
       <AnnualEventModal
         isOpen={modalOpen}

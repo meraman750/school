@@ -180,6 +180,8 @@ class AnnualScheduleViewSet(BaseModelViewSet):
             'id': year.id,
             'name': year.name,
             'event_count': year.event_count,
+            'start_date': year.start_date,
+            'end_date': year.end_date,
         } for year in years])
 
 
