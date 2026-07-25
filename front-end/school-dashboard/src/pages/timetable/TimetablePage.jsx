@@ -44,17 +44,17 @@ function AnnualYearListTab() {
       ) : sortedYears.length === 0 ? (
         <EmptyState title="No academic years" description="Add Ethiopian calendar years under Academics seed or settings." />
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="flex flex-col gap-3">
           {sortedYears.map((year) => (
             <li key={year.id}>
-              <Link to={annualScheduleYearPath(year.id)} className="block h-full">
-                <Card padding className="group h-full transition-shadow hover:shadow-md">
+              <Link to={annualScheduleYearPath(year.id)} className="block">
+                <Card padding className="group transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-gray-900 group-hover:text-primary dark:text-white">
                         {year.name}
                       </p>
-                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
                         {year.event_count} {year.event_count === 1 ? 'event' : 'events'}
                       </p>
                     </div>
