@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
@@ -19,12 +19,13 @@ import { academicsSubApi } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
 import {
-  buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS,
+  buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS, itemViewerPath,
 } from './academicsConstants';
 import GradeItemFormModal from './GradeItemFormModal';
 
 export default function AcademicsSubjectItemsPage() {
   const { typeSlug, subjectId } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tab = getTabBySlug(typeSlug);
   const subjectNumericId = Number(subjectId);
@@ -115,7 +116,15 @@ export default function AcademicsSubjectItemsPage() {
     {
       key: 'title',
       header: 'Title',
-      render: (r) => <span className="font-semibold text-gray-900 dark:text-white">{r.title}</span>,
+      render: (r) => (
+        <Link
+          to={itemViewerPath(tab, subjectNumericId, r.id)}
+          className="font-semibold text-primary hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {r.title}
+        </Link>
+      ),
     },
     {
       key: 'grade_level',
@@ -130,21 +139,15 @@ export default function AcademicsSubjectItemsPage() {
     {
       key: 'files',
       header: 'Files',
-      render: (r) => (
-        <div className="flex max-w-xs flex-wrap gap-1">
-          {(r.attachments || []).length ? r.attachments.map((att) => (
-            <a
-              key={att.id}
-              href={att.file_url || att.file}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-primary hover:underline dark:bg-gray-800"
-            >
-              {att.original_filename || 'File'}
-            </a>
-          )) : '—'}
-        </div>
-      ),
+      render: (r) => {
+        const count = r.attachment_count ?? (r.attachments || []).length;
+        if (!count) return '—';
+        return (
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+            {count} file{count === 1 ? '' : 's'} · click row to open
+          </span>
+        );
+      },
     },
     {
       key: 'created_at',
@@ -159,14 +162,14 @@ export default function AcademicsSubjectItemsPage() {
         <div className="flex justify-end gap-1">
           <button
             type="button"
-            onClick={() => { setEditing(row); setModalOpen(true); }}
+            onClick={(e) => { e.stopPropagation(); setEditing(row); setModalOpen(true); }}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary"
           >
             <FiEdit2 />
           </button>
           <button
             type="button"
-            onClick={() => setDeleteTarget(row)}
+            onClick={(e) => { e.stopPropagation(); setDeleteTarget(row); }}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
           >
             <FiTrash2 />
@@ -233,7 +236,11 @@ export default function AcademicsSubjectItemsPage() {
         />
       ) : (
         <>
-          <Table columns={columns} data={data?.results || []} />
+          <Table
+            columns={columns}
+            data={data?.results || []}
+            onRowClick={(row) => navigate(itemViewerPath(tab, subjectNumericId, row.id))}
+          />
           <Pagination
             page={page}
             pageSize={pageSize}

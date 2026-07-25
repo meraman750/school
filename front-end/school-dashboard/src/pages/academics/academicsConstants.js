@@ -21,6 +21,10 @@ export function subjectItemsPath(tab, subjectId) {
   return `/academics/${tab.slug}/subject/${subjectId}`;
 }
 
+export function itemViewerPath(tab, subjectId, itemId) {
+  return `/academics/${tab.slug}/subject/${subjectId}/view/${itemId}`;
+}
+
 export function buildGradeItemFormData(formValues, itemType, subjectId, files, editing) {
   const fd = new FormData();
   fd.append('item_type', itemType);
