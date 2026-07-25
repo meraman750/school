@@ -174,14 +174,16 @@ class GradeAcademicItemAttachmentSerializer(serializers.ModelSerializer):
 class GradeAcademicItemSerializer(serializers.ModelSerializer):
     attachments = GradeAcademicItemAttachmentSerializer(many=True, read_only=True)
     academic_year_name = serializers.CharField(source='academic_year.name', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    subject_code = serializers.CharField(source='subject.code', read_only=True)
     item_type_label = serializers.SerializerMethodField()
     attachment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = GradeAcademicItem
         fields = (
-            'id', 'item_type', 'item_type_label', 'title', 'grade_level',
-            'academic_year', 'academic_year_name', 'description',
+            'id', 'item_type', 'item_type_label', 'subject', 'subject_name', 'subject_code',
+            'title', 'grade_level', 'academic_year', 'academic_year_name', 'description',
             'attachments', 'attachment_count', 'created_at',
         )
         read_only_fields = ('created_at',)
@@ -199,12 +201,15 @@ class GradeAcademicItemSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get('request')
-        if self.instance is None and request:
-            files = request.FILES.getlist('files')
-            if not files:
-                raise serializers.ValidationError({'files': 'Upload at least one PDF or image file.'})
-            for uploaded in files:
-                validate_academic_upload_file(uploaded)
+        if self.instance is None:
+            if not attrs.get('subject'):
+                raise serializers.ValidationError({'subject': 'Subject is required.'})
+            if request:
+                files = request.FILES.getlist('files')
+                if not files:
+                    raise serializers.ValidationError({'files': 'Upload at least one PDF or image file.'})
+                for uploaded in files:
+                    validate_academic_upload_file(uploaded)
         elif request and request.FILES.getlist('files'):
             for uploaded in request.FILES.getlist('files'):
                 validate_academic_upload_file(uploaded)
@@ -238,6 +243,7 @@ class GradeAcademicItemSerializer(serializers.ModelSerializer):
         request = self.context['request']
         validated_data.pop('academic_year', None)
         validated_data.pop('item_type', None)
+        validated_data.pop('subject', None)
         validated_data.pop('created_by', None)
         validated_data['updated_by'] = request.user
         item = super().update(instance, validated_data)

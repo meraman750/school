@@ -151,6 +151,8 @@ export const academicsSubApi = {
     create: (formData) => api.post('academics/grade-items/', formData).then((r) => r.data),
     update: (id, formData) => api.patch(`academics/grade-items/${id}/`, formData).then((r) => r.data),
     delete: (id) => api.delete(`academics/grade-items/${id}/`).then((r) => r.data),
+    subjectOptions: (itemType) =>
+      api.get('academics/grade-items/subject-options/', { params: { item_type: itemType } }).then((r) => r.data),
   },
 };
 

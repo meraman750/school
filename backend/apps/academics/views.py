@@ -1,5 +1,7 @@
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
+from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.response import Response
 
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsStaffMember, IsTeacher
@@ -8,7 +10,7 @@ from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
-    GradeAcademicItem, GradeAcademicItemAttachment,
+    GradeAcademicItem, GradeAcademicItemAttachment, Subject,
 )
 from .serializers import (
     AcademicYearSerializer, TermSerializer, SemesterSerializer, DepartmentSerializer,
@@ -154,7 +156,7 @@ class RoomViewSet(BaseModelViewSet):
 
 class GradeAcademicItemViewSet(BaseModelViewSet):
     queryset = GradeAcademicItem.objects.filter(is_deleted=False).select_related(
-        'academic_year',
+        'academic_year', 'subject',
     ).prefetch_related(
         Prefetch(
             'attachments',
@@ -164,6 +166,31 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
     serializer_class = GradeAcademicItemSerializer
     permission_classes = [IsStaffMember]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    filterset_fields = ['item_type', 'grade_level', 'academic_year']
-    search_fields = ['title', 'description']
+    filterset_fields = ['item_type', 'grade_level', 'academic_year', 'subject']
+    search_fields = ['title', 'description', 'subject__name', 'subject__code']
     ordering_fields = ['created_at', 'grade_level', 'title']
+
+    @action(detail=False, methods=['get'], url_path='subject-options')
+    def subject_options(self, request):
+        item_type = request.query_params.get('item_type')
+        valid_types = dict(GradeAcademicItem.ItemType.choices)
+        if item_type not in valid_types:
+            return Response(
+                {'detail': 'item_type is required (ASSIGNMENT, MID_EXAM, or FINAL_EXAM).'},
+                status=400,
+            )
+        subjects = Subject.objects.filter(is_deleted=False).annotate(
+            item_count=Count(
+                'grade_academic_items',
+                filter=Q(
+                    grade_academic_items__item_type=item_type,
+                    grade_academic_items__is_deleted=False,
+                ),
+            ),
+        ).order_by('name')
+        return Response([{
+            'id': subject.id,
+            'name': subject.name,
+            'code': subject.code,
+            'item_count': subject.item_count,
+        } for subject in subjects])

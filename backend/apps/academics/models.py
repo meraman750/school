@@ -320,6 +320,13 @@ class GradeAcademicItem(BaseModel):
         FINAL_EXAM = 'FINAL_EXAM', 'Final Exam'
 
     item_type = models.CharField(max_length=20, choices=ItemType.choices)
+    subject = models.ForeignKey(
+        Subject,
+        on_delete=models.PROTECT,
+        related_name='grade_academic_items',
+        null=True,
+        blank=True,
+    )
     title = models.CharField(max_length=200)
     grade_level = models.PositiveIntegerField()
     academic_year = models.ForeignKey(
@@ -335,6 +342,7 @@ class GradeAcademicItem(BaseModel):
         indexes = [
             models.Index(fields=['item_type', 'grade_level']),
             models.Index(fields=['academic_year']),
+            models.Index(fields=['subject', 'item_type']),
         ]
 
     def __str__(self):

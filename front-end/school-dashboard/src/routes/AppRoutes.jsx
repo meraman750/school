@@ -28,6 +28,8 @@ import TeachersPage from '../pages/teachers/TeachersPage';
 
 import AcademicsPage from '../pages/academics/AcademicsPage';
 
+import AcademicsSubjectItemsPage from '../pages/academics/AcademicsSubjectItemsPage';
+
 import TimetablePage from '../pages/timetable/TimetablePage';
 
 import ExaminationPage from '../pages/examination/ExaminationPage';
@@ -129,6 +131,8 @@ export default function AppRoutes() {
           <Route path="teachers/:id" element={<RoleGuard moduleKey="teachers"><TeacherDetailPage /></RoleGuard>} />
 
           <Route path="academics" element={<RoleGuard moduleKey="academics"><AcademicsPage /></RoleGuard>} />
+
+          <Route path="academics/:typeSlug/subject/:subjectId" element={<RoleGuard moduleKey="academics"><AcademicsSubjectItemsPage /></RoleGuard>} />
 
           <Route path="timetable" element={<RoleGuard moduleKey="timetable"><TimetablePage /></RoleGuard>} />
 
