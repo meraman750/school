@@ -4,7 +4,7 @@ from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
-    GradeAcademicItem, GradeAcademicItemAttachment,
+    GradeAcademicItem, GradeAcademicItemAttachment, AnnualSchedule,
 )
 
 ALLOWED_ACADEMIC_UPLOAD_TYPES = {
@@ -141,10 +141,86 @@ class TranscriptSerializer(serializers.ModelSerializer):
 
 
 class TimetableSerializer(serializers.ModelSerializer):
+    day_label = serializers.CharField(source='get_day_of_week_display', read_only=True)
+    school_class_name = serializers.CharField(source='school_class.name', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    teacher_name = serializers.SerializerMethodField()
+    room_name = serializers.CharField(source='room.name', read_only=True, allow_null=True)
+
     class Meta:
         model = Timetable
-        fields = '__all__'
+        fields = (
+            'id', 'school_class', 'school_class_name', 'subject', 'subject_name',
+            'teacher', 'teacher_name', 'day_of_week', 'day_label',
+            'start_time', 'end_time', 'room', 'room_name',
+            'created_at', 'updated_at',
+        )
         read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
+
+    def get_teacher_name(self, obj):
+        parts = [obj.teacher.first_name, obj.teacher.last_name]
+        return ' '.join(p for p in parts if p)
+
+    def validate(self, attrs):
+        start = attrs.get('start_time', getattr(self.instance, 'start_time', None))
+        end = attrs.get('end_time', getattr(self.instance, 'end_time', None))
+        if start and end and end <= start:
+            raise serializers.ValidationError({'end_time': 'End time must be after start time.'})
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data.pop('created_by', None)
+        validated_data.pop('updated_by', None)
+        return Timetable.objects.create(
+            created_by=user,
+            updated_by=user,
+            **validated_data,
+        )
+
+
+class AnnualScheduleSerializer(serializers.ModelSerializer):
+    academic_year_name = serializers.CharField(source='academic_year.name', read_only=True)
+    event_type_label = serializers.SerializerMethodField()
+    grade_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AnnualSchedule
+        fields = (
+            'id', 'academic_year', 'academic_year_name', 'title', 'event_type', 'event_type_label',
+            'start_date', 'end_date', 'grade_level', 'grade_display', 'description', 'created_at',
+        )
+        read_only_fields = ('created_at',)
+
+    def get_event_type_label(self, obj):
+        return dict(AnnualSchedule.EventType.choices).get(obj.event_type, obj.event_type)
+
+    def get_grade_display(self, obj):
+        if obj.grade_level:
+            return f'Grade {obj.grade_level}'
+        return 'All grades'
+
+    def validate(self, attrs):
+        start = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+        end = attrs.get('end_date', attrs.get('start_date', getattr(self.instance, 'end_date', None)))
+        if end and start and end < start:
+            raise serializers.ValidationError({'end_date': 'End date cannot be before start date.'})
+        grade = attrs.get('grade_level')
+        if grade is not None and (grade < 1 or grade > 8):
+            raise serializers.ValidationError({'grade_level': 'Grade level must be between 1 and 8.'})
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data.pop('created_by', None)
+        validated_data.pop('updated_by', None)
+        if not validated_data.get('end_date'):
+            validated_data['end_date'] = validated_data['start_date']
+        return AnnualSchedule.objects.create(
+            created_by=user,
+            updated_by=user,
+            **validated_data,
+        )
 
 
 class RoomSerializer(serializers.ModelSerializer):

@@ -298,6 +298,34 @@ class Timetable(BaseModel):
         return f'{self.school_class} - {self.subject} ({self.get_day_of_week_display()})'
 
 
+class AnnualSchedule(BaseModel):
+    class EventType(models.TextChoices):
+        TERM = 'TERM', 'Term / Semester'
+        HOLIDAY = 'HOLIDAY', 'Holiday / Break'
+        EXAM = 'EXAM', 'Exam Period'
+        EVENT = 'EVENT', 'School Event'
+        OTHER = 'OTHER', 'Other'
+
+    academic_year = models.ForeignKey(
+        AcademicYear, on_delete=models.CASCADE, related_name='annual_schedules',
+    )
+    title = models.CharField(max_length=200)
+    event_type = models.CharField(max_length=20, choices=EventType.choices, default=EventType.EVENT)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    grade_level = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Leave empty for whole-school events.',
+    )
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['start_date', 'title']
+
+    def __str__(self):
+        return f'{self.title} ({self.academic_year})'
+
+
 class Room(BaseModel):
     name = models.CharField(max_length=50)
     building = models.CharField(max_length=50, blank=True)

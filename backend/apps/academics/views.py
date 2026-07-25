@@ -10,14 +10,14 @@ from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
-    GradeAcademicItem, GradeAcademicItemAttachment, Subject,
+    GradeAcademicItem, GradeAcademicItemAttachment, Subject, AnnualSchedule,
 )
 from .serializers import (
     AcademicYearSerializer, TermSerializer, SemesterSerializer, DepartmentSerializer,
     SubjectSerializer, SchoolClassSerializer, SectionSerializer, CurriculumSerializer,
     LessonPlanSerializer, AssignmentSerializer, HomeworkSerializer, ExaminationSerializer,
     ExamScheduleSerializer, GradeSerializer, ReportCardSerializer, TranscriptSerializer,
-    TimetableSerializer, RoomSerializer, GradeAcademicItemSerializer,
+    TimetableSerializer, RoomSerializer, GradeAcademicItemSerializer, AnnualScheduleSerializer,
 )
 
 
@@ -140,10 +140,22 @@ class TranscriptViewSet(BaseModelViewSet):
 
 
 class TimetableViewSet(BaseModelViewSet):
-    queryset = Timetable.objects.all()
+    queryset = Timetable.objects.select_related(
+        'school_class', 'subject', 'teacher', 'room',
+    ).all()
     serializer_class = TimetableSerializer
     permission_classes = [IsStaffMember]
     filterset_fields = ['school_class', 'subject', 'teacher', 'day_of_week']
+    ordering_fields = ['day_of_week', 'start_time']
+
+
+class AnnualScheduleViewSet(BaseModelViewSet):
+    queryset = AnnualSchedule.objects.select_related('academic_year').filter(is_deleted=False)
+    serializer_class = AnnualScheduleSerializer
+    permission_classes = [IsStaffMember]
+    filterset_fields = ['academic_year', 'event_type', 'grade_level']
+    search_fields = ['title', 'description']
+    ordering_fields = ['start_date', 'title']
 
 
 class RoomViewSet(BaseModelViewSet):

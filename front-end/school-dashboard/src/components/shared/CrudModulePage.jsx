@@ -77,6 +77,12 @@ export default function CrudModulePage({
     formFields.forEach((field) => {
       let value = row[field.name] ?? '';
       if (field.name === 'subject') value = row.subject ?? row.specialization ?? '';
+      if (field.name === 'grade_level' && (value === null || value === undefined)) value = '';
+      if (field.type === 'time' && typeof value === 'string' && value.length > 5) {
+        value = value.slice(0, 5);
+      }
+      if (typeof value === 'number') value = String(value);
+      if (value === null) value = '';
       setValue(field.name, value);
     });
     setModalOpen(true);

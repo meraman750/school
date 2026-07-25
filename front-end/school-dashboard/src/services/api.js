@@ -156,6 +156,9 @@ export const academicsSubApi = {
     subjectOptions: (itemType) =>
       api.get('academics/grade-items/subject-options/', { params: { item_type: itemType } }).then((r) => r.data),
   },
+  timetables: createResourceService('academics/timetables'),
+  annualSchedules: createResourceService('academics/annual-schedules'),
+  rooms: createResourceService('academics/rooms'),
 };
 
 export const exportReport = async (type, params = {}) => {
