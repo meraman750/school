@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -11,6 +11,7 @@ import Modal from '../../components/ui/Modal';
 import Select from '../../components/ui/Select';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import Textarea from '../../components/ui/Textarea';
+import AcademicYearDateFields from '../../components/timetable/AcademicYearDateFields';
 import AnnualScheduleTimeline, { AnnualEventDetailModal } from '../../components/timetable/AnnualScheduleTimeline';
 import {
   useCreateMutation, useDeleteMutation, useListQuery, useUpdateMutation,
@@ -19,34 +20,102 @@ import { academicsSubApi } from '../../services/api';
 import {
   buildAnnualEventFormData, EVENT_TYPE_OPTIONS, GRADE_FORM_OPTIONS,
 } from './timetableConstants';
+import {
+  compareIsoDates,
+  getDayOptionsInRange,
+  getMonthOptionsInRange,
+  getAcademicYearRange,
+  isoFromMonthDay,
+  parseIsoToMonthDay,
+} from './academicYearRange';
 
 function AnnualEventModal({
   isOpen,
   onClose,
   yearName,
+  yearRecord,
   editing,
   onSubmit,
   loading,
 }) {
   const { register, handleSubmit, reset } = useForm();
   const [files, setFiles] = useState([]);
+  const [startMonth, setStartMonth] = useState('');
+  const [startDay, setStartDay] = useState('');
+  const [endMonth, setEndMonth] = useState('');
+  const [endDay, setEndDay] = useState('');
+  const [dateError, setDateError] = useState('');
+
+  const { start: rangeStart, end: rangeEnd } = useMemo(
+    () => getAcademicYearRange(yearRecord),
+    [yearRecord],
+  );
 
   useEffect(() => {
     if (isOpen) {
       reset({
         title: editing?.title || '',
         event_type: editing?.event_type || 'EVENT',
-        start_date: editing?.start_date || '',
-        end_date: editing?.end_date || '',
         grade_level: editing?.grade_level ? String(editing.grade_level) : '',
         description: editing?.description || '',
       });
       setFiles([]);
+      setDateError('');
+
+      const startParts = editing?.start_date
+        ? parseIsoToMonthDay(editing.start_date, rangeStart, rangeEnd)
+        : (() => {
+          const months = getMonthOptionsInRange(rangeStart, rangeEnd);
+          const monthKey = months[0]?.value || '';
+          const days = getDayOptionsInRange(rangeStart, rangeEnd, monthKey);
+          return { monthKey, day: days[0]?.value || '' };
+        })();
+      setStartMonth(startParts.monthKey);
+      setStartDay(startParts.day);
+
+      const endIso = editing?.end_date && editing.end_date !== editing.start_date
+        ? editing.end_date
+        : '';
+      const endParts = parseIsoToMonthDay(endIso, rangeStart, rangeEnd);
+      setEndMonth(endParts.monthKey);
+      setEndDay(endParts.day);
     }
-  }, [isOpen, editing, reset]);
+  }, [isOpen, editing, reset, rangeStart, rangeEnd]);
+
+  const handleStartMonthChange = (monthKey) => {
+    setStartMonth(monthKey);
+    const days = getDayOptionsInRange(rangeStart, rangeEnd, monthKey);
+    if (!days.some((d) => d.value === startDay)) {
+      setStartDay(days[0]?.value || '');
+    }
+  };
+
+  const handleEndMonthChange = (monthKey) => {
+    setEndMonth(monthKey);
+    const days = getDayOptionsInRange(rangeStart, rangeEnd, monthKey);
+    if (!days.some((d) => d.value === endDay)) {
+      setEndDay(days[0]?.value || '');
+    }
+  };
 
   const submit = (values) => {
-    onSubmit(values, files);
+    const start_date = isoFromMonthDay(startMonth, startDay);
+    if (!start_date) {
+      setDateError('Choose a start month and day within this academic year.');
+      return;
+    }
+
+    let end_date = start_date;
+    if (endMonth && endDay) {
+      end_date = isoFromMonthDay(endMonth, endDay) || start_date;
+    }
+    if (compareIsoDates(end_date, start_date) < 0) {
+      setDateError('End date cannot be before start date.');
+      return;
+    }
+
+    setDateError('');
+    onSubmit({ ...values, start_date, end_date }, files);
   };
 
   return (
@@ -64,10 +133,27 @@ function AnnualEventModal({
           options={EVENT_TYPE_OPTIONS}
           {...register('event_type', { required: true })}
         />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Start Date" type="date" {...register('start_date', { required: true })} />
-          <Input label="End Date" type="date" {...register('end_date')} />
-        </div>
+        <AcademicYearDateFields
+          label="Start date"
+          required
+          yearRecord={yearRecord}
+          monthKey={startMonth}
+          day={startDay}
+          onMonthChange={handleStartMonthChange}
+          onDayChange={setStartDay}
+        />
+        <AcademicYearDateFields
+          label="End date (optional)"
+          yearRecord={yearRecord}
+          monthKey={endMonth}
+          day={endDay}
+          onMonthChange={handleEndMonthChange}
+          onDayChange={setEndDay}
+        />
+        {dateError && <p className="text-xs text-red-500">{dateError}</p>}
+        <p className="text-[10px] text-gray-500">
+          Dates are limited to this academic year. The year is set automatically.
+        </p>
         <Select label="Grade (optional)" options={GRADE_FORM_OPTIONS} {...register('grade_level')} />
         <Textarea label="Description" rows={3} {...register('description')} />
         <div>
@@ -220,6 +306,7 @@ export default function AnnualScheduleYearPage() {
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditing(null); }}
         yearName={yearName}
+        yearRecord={yearRecord}
         editing={editing}
         onSubmit={handleSubmit}
         loading={createMutation.isPending || updateMutation.isPending}

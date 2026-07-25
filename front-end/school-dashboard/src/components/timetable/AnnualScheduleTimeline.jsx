@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatDate } from '../../utils/formatters';
 import { loadMediaBlobUrl, resolveMediaUrl } from '../../utils/academicMedia';
+import {
+  getAcademicYearRange,
+  parseDay,
+} from '../../pages/timetable/academicYearRange';
 import Modal from '../ui/Modal';
 import Badge from '../ui/Badge';
 
@@ -14,11 +18,6 @@ const TYPE_VARIANT = {
 
 const TIMELINE_MIN_HEIGHT = 520;
 
-function parseDay(dateStr) {
-  if (!dateStr) return null;
-  return new Date(`${dateStr}T12:00:00`);
-}
-
 function toPercent(date, rangeStart, rangeEnd) {
   if (!date || !rangeStart || !rangeEnd) return 0;
   const startMs = rangeStart.getTime();
@@ -28,33 +27,22 @@ function toPercent(date, rangeStart, rangeEnd) {
   return Math.min(100, Math.max(0, pct));
 }
 
-function defaultYearRange(yearName) {
-  const match = String(yearName || '').match(/(\d{4})/);
-  const ec = match ? Number(match[1]) : 2018;
-  const gregorianStart = ec + 7;
-  return {
-    start: new Date(`${gregorianStart}-09-11T12:00:00`),
-    end: new Date(`${gregorianStart + 1}-09-10T12:00:00`),
-  };
-}
-
 function getYearRange(yearRecord) {
-  const start = parseDay(yearRecord?.start_date);
-  const end = parseDay(yearRecord?.end_date);
-  if (start && end) return { start, end };
-  return defaultYearRange(yearRecord?.name);
+  return getAcademicYearRange(yearRecord);
 }
 
 function formatMonthLabel(date) {
   return date.toLocaleDateString(undefined, { month: 'short' });
 }
 
-function eventAnchorDate(event) {
+function eventAnchorDate(event, rangeStart) {
   const start = parseDay(event.start_date);
   const end = parseDay(event.end_date || event.start_date);
-  if (!start) return null;
-  if (!end || end.getTime() === start.getTime()) return start;
-  return new Date((start.getTime() + end.getTime()) / 2);
+  if (start) {
+    if (!end || end.getTime() === start.getTime()) return start;
+    return new Date((start.getTime() + end.getTime()) / 2);
+  }
+  return rangeStart ? new Date(rangeStart) : null;
 }
 
 function AttachmentImage({ attachment }) {
@@ -151,19 +139,16 @@ export function AnnualEventDetailModal({ event, isOpen, onClose, onEdit, onDelet
   );
 }
 
-function TimelineLeafButton({ event, onEventClick, stemSide }) {
+function TimelineLeafCard({ event, stemSide }) {
   const dateLabel = event.end_date && event.end_date !== event.start_date
     ? `${formatDate(event.start_date)} – ${formatDate(event.end_date)}`
     : formatDate(event.start_date);
 
   return (
-    <button
-      type="button"
-      onClick={() => onEventClick?.(event)}
-      className={`group relative max-w-[210px] shrink-0 rounded-lg border border-primary/35 bg-gradient-to-br from-white to-primary/5 px-3 py-2 text-left shadow-sm transition hover:border-primary hover:shadow-md dark:from-gray-900 dark:to-primary/10 ${
+    <div
+      className={`group relative max-w-[210px] shrink-0 rounded-lg border border-primary/35 bg-gradient-to-br from-white to-primary/5 px-3 py-2 text-left shadow-sm transition group-hover/event:border-primary group-hover/event:shadow-md dark:from-gray-900 dark:to-primary/10 ${
         stemSide === 'right' ? 'rounded-tr-sm' : 'rounded-tl-sm'
       }`}
-      title={event.title}
     >
       <span
         className={`absolute top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border border-primary/35 bg-white dark:bg-gray-900 ${
@@ -171,11 +156,11 @@ function TimelineLeafButton({ event, onEventClick, stemSide }) {
         }`}
         aria-hidden
       />
-      <p className="truncate text-xs font-bold text-gray-900 group-hover:text-primary dark:text-white">
+      <p className="truncate text-xs font-bold text-gray-900 group-hover/event:text-primary dark:text-white">
         {event.title}
       </p>
       <p className="mt-0.5 truncate text-[10px] text-gray-500">{dateLabel}</p>
-    </button>
+    </div>
   );
 }
 
@@ -205,7 +190,7 @@ export default function AnnualScheduleTimeline({ events, yearRecord, onEventClic
 
     const placed = [];
     sorted.forEach((event, index) => {
-      const anchor = eventAnchorDate(event);
+      const anchor = eventAnchorDate(event, start);
       if (!anchor) return;
       let top = toPercent(anchor, start, end);
       let side = index % 2 === 0 ? 'right' : 'left';
@@ -279,20 +264,30 @@ export default function AnnualScheduleTimeline({ events, yearRecord, onEventClic
           {positionedEvents.map(({ event, top, side }) => (
             <div
               key={event.id}
-              className="absolute left-0 right-0 z-10 flex items-center"
+              role="button"
+              tabIndex={0}
+              onClick={() => onEventClick?.(event)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onEventClick?.(event);
+                }
+              }}
+              className="group/event absolute left-0 right-0 z-10 flex cursor-pointer items-center outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               style={{
                 top: `calc(24px + (100% - 48px) * ${top / 100})`,
                 transform: 'translateY(-50%)',
               }}
+              title={`View details: ${event.title}`}
             >
               {side === 'left' ? (
                 <>
                   <div className="flex w-[calc(50%-20px)] items-center justify-end gap-0 pr-0">
-                    <TimelineLeafButton event={event} onEventClick={onEventClick} stemSide="right" />
-                    <div className="h-0.5 w-full max-w-[88px] bg-primary/55" aria-hidden />
+                    <TimelineLeafCard event={event} stemSide="right" />
+                    <div className="h-0.5 w-full max-w-[88px] bg-primary/55 group-hover/event:bg-primary" aria-hidden />
                   </div>
                   <div className="relative z-20 flex w-10 shrink-0 justify-center">
-                    <div className="h-3.5 w-3.5 rounded-full border-2 border-white bg-primary shadow ring-2 ring-primary/30 dark:border-gray-900" />
+                    <div className="h-3.5 w-3.5 rounded-full border-2 border-white bg-primary shadow ring-2 ring-primary/30 group-hover/event:scale-110 dark:border-gray-900" />
                   </div>
                   <div className="w-[calc(50%-20px)]" aria-hidden />
                 </>
@@ -300,11 +295,11 @@ export default function AnnualScheduleTimeline({ events, yearRecord, onEventClic
                 <>
                   <div className="w-[calc(50%-20px)]" aria-hidden />
                   <div className="relative z-20 flex w-10 shrink-0 justify-center">
-                    <div className="h-3.5 w-3.5 rounded-full border-2 border-white bg-primary shadow ring-2 ring-primary/30 dark:border-gray-900" />
+                    <div className="h-3.5 w-3.5 rounded-full border-2 border-white bg-primary shadow ring-2 ring-primary/30 group-hover/event:scale-110 dark:border-gray-900" />
                   </div>
                   <div className="flex w-[calc(50%-20px)] items-center justify-start gap-0 pl-0">
-                    <div className="h-0.5 w-full max-w-[88px] bg-primary/55" aria-hidden />
-                    <TimelineLeafButton event={event} onEventClick={onEventClick} stemSide="left" />
+                    <div className="h-0.5 w-full max-w-[88px] bg-primary/55 group-hover/event:bg-primary" aria-hidden />
+                    <TimelineLeafCard event={event} stemSide="left" />
                   </div>
                 </>
               )}
@@ -314,7 +309,7 @@ export default function AnnualScheduleTimeline({ events, yearRecord, onEventClic
       </div>
 
       <p className="mt-3 text-center text-[10px] text-gray-400">
-        Click an event card to view details
+        Click an event on the timeline to view details
       </p>
     </div>
   );
