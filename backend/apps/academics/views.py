@@ -1,3 +1,6 @@
+from django.db.models import Prefetch
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsStaffMember, IsTeacher
 
@@ -5,13 +8,14 @@ from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
+    GradeAcademicItem, GradeAcademicItemAttachment,
 )
 from .serializers import (
     AcademicYearSerializer, TermSerializer, SemesterSerializer, DepartmentSerializer,
     SubjectSerializer, SchoolClassSerializer, SectionSerializer, CurriculumSerializer,
     LessonPlanSerializer, AssignmentSerializer, HomeworkSerializer, ExaminationSerializer,
     ExamScheduleSerializer, GradeSerializer, ReportCardSerializer, TranscriptSerializer,
-    TimetableSerializer, RoomSerializer,
+    TimetableSerializer, RoomSerializer, GradeAcademicItemSerializer,
 )
 
 
@@ -146,3 +150,20 @@ class RoomViewSet(BaseModelViewSet):
     permission_classes = [IsStaffMember]
     filterset_fields = ['building', 'is_available']
     search_fields = ['name', 'building']
+
+
+class GradeAcademicItemViewSet(BaseModelViewSet):
+    queryset = GradeAcademicItem.objects.filter(is_deleted=False).select_related(
+        'academic_year',
+    ).prefetch_related(
+        Prefetch(
+            'attachments',
+            queryset=GradeAcademicItemAttachment.objects.filter(is_deleted=False),
+        ),
+    )
+    serializer_class = GradeAcademicItemSerializer
+    permission_classes = [IsStaffMember]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    filterset_fields = ['item_type', 'grade_level', 'academic_year']
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at', 'grade_level', 'title']

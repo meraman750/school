@@ -311,3 +311,45 @@ class Room(BaseModel):
 
     def __str__(self):
         return f'{self.building} - {self.name}' if self.building else self.name
+
+
+class GradeAcademicItem(BaseModel):
+    class ItemType(models.TextChoices):
+        ASSIGNMENT = 'ASSIGNMENT', 'Assignment'
+        MID_EXAM = 'MID_EXAM', 'Mid Exam'
+        FINAL_EXAM = 'FINAL_EXAM', 'Final Exam'
+
+    item_type = models.CharField(max_length=20, choices=ItemType.choices)
+    title = models.CharField(max_length=200)
+    grade_level = models.PositiveIntegerField()
+    academic_year = models.ForeignKey(
+        AcademicYear,
+        on_delete=models.PROTECT,
+        related_name='grade_academic_items',
+        help_text='Ethiopian calendar year when this item was first added.',
+    )
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-created_at', 'grade_level', 'title']
+        indexes = [
+            models.Index(fields=['item_type', 'grade_level']),
+            models.Index(fields=['academic_year']),
+        ]
+
+    def __str__(self):
+        return f'{self.title} · Grade {self.grade_level}'
+
+
+class GradeAcademicItemAttachment(BaseModel):
+    item = models.ForeignKey(
+        GradeAcademicItem, on_delete=models.CASCADE, related_name='attachments',
+    )
+    file = models.FileField(upload_to='academics/grade-items/%Y/%m/')
+    original_filename = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return self.original_filename or str(self.file)

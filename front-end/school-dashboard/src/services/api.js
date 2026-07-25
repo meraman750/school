@@ -145,6 +145,13 @@ export const academicsSubApi = {
   assignments: createResourceService('academics/assignments'),
   exams: createResourceService('academics/examinations'),
   grades: createResourceService('academics/grades'),
+  gradeItems: {
+    list: (params) => api.get('academics/grade-items/', { params }).then((r) => r.data),
+    get: (id) => api.get(`academics/grade-items/${id}/`).then((r) => r.data),
+    create: (formData) => api.post('academics/grade-items/', formData).then((r) => r.data),
+    update: (id, formData) => api.patch(`academics/grade-items/${id}/`, formData).then((r) => r.data),
+    delete: (id) => api.delete(`academics/grade-items/${id}/`).then((r) => r.data),
+  },
 };
 
 export const exportReport = async (type, params = {}) => {
