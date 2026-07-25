@@ -132,7 +132,6 @@ export const teacherSalaryPaymentsApi = createResourceService('teachers/salary-p
 export const libraryApi = createResourceService('library/books');
 export const transportApi = createResourceService('transport/routes');
 export const inventoryApi = createResourceService('inventory/assets');
-export const hrApi = createResourceService('hr/employees');
 export const documentsApi = createResourceService('documents/documents');
 export const settingsApi = createResourceService('settings/school-profile');
 

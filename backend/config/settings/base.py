@@ -33,7 +33,6 @@ INSTALLED_APPS = [
     'apps.website',
     'apps.transport',
     'apps.inventory',
-    'apps.hr',
     'apps.documents',
     'apps.reports',
     'apps.settings_app',

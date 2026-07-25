@@ -81,7 +81,6 @@ docker-compose up --build
 | Library | Books, borrowing, fines |
 | Transport | Routes, vehicles, assignments |
 | Inventory | Assets, supplies, stock |
-| HR | Employees, payroll, leave |
 | Documents | File management |
 | Reports | PDF, Excel, CSV exports |
 | Website | Public CMS content |
