@@ -157,7 +157,14 @@ export const academicsSubApi = {
       api.get('academics/grade-items/subject-options/', { params: { item_type: itemType } }).then((r) => r.data),
   },
   timetables: createResourceService('academics/timetables'),
-  annualSchedules: createResourceService('academics/annual-schedules'),
+  annualSchedules: {
+    list: (params) => api.get('academics/annual-schedules/', { params }).then((r) => r.data),
+    get: (id) => api.get(`academics/annual-schedules/${id}/`).then((r) => r.data),
+    create: (formData) => api.post('academics/annual-schedules/', formData).then((r) => r.data),
+    update: (id, formData) => api.patch(`academics/annual-schedules/${id}/`, formData).then((r) => r.data),
+    delete: (id) => api.delete(`academics/annual-schedules/${id}/`).then((r) => r.data),
+    yearOptions: () => api.get('academics/annual-schedules/year-options/').then((r) => r.data),
+  },
   rooms: createResourceService('academics/rooms'),
 };
 

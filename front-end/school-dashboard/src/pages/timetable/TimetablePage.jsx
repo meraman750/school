@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { FiChevronRight } from 'react-icons/fi';
 import CrudModulePage from '../../components/shared/CrudModulePage';
+import Card from '../../components/ui/Card';
+import EmptyState from '../../components/ui/EmptyState';
+import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi, teachersApi } from '../../services/api';
-import { formatDate } from '../../utils/formatters';
-import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
+import { annualScheduleYearPath } from './timetableConstants';
 
 const TABS = [
   { key: 'annual', label: 'Annual Schedule' },
@@ -19,89 +23,54 @@ const DAY_OPTIONS = [
   { value: '6', label: 'Saturday' },
 ];
 
-const EVENT_TYPE_OPTIONS = [
-  { value: 'TERM', label: 'Term / Semester' },
-  { value: 'HOLIDAY', label: 'Holiday / Break' },
-  { value: 'EXAM', label: 'Exam Period' },
-  { value: 'EVENT', label: 'School Event' },
-  { value: 'OTHER', label: 'Other' },
-];
-
-const GRADE_FILTER_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({
-  value: String(g),
-  label: `Grade ${g}`,
-}));
-
-const GRADE_FORM_OPTIONS = [
-  { value: '', label: 'All grades (whole school)' },
-  ...GRADE_FILTER_OPTIONS,
-];
-
-function AnnualScheduleTab({ yearOptions, defaultYearId }) {
-  const columns = [
-    { key: 'title', header: 'Title', render: (r) => <span className="font-semibold">{r.title}</span> },
-    { key: 'academic_year_name', header: 'Year', render: (r) => r.academic_year_name || '—' },
-    { key: 'event_type_label', header: 'Type', render: (r) => r.event_type_label || r.event_type },
-    {
-      key: 'dates',
-      header: 'Dates',
-      render: (r) => {
-        if (!r.start_date) return '—';
-        if (r.end_date && r.end_date !== r.start_date) {
-          return `${formatDate(r.start_date)} – ${formatDate(r.end_date)}`;
-        }
-        return formatDate(r.start_date);
-      },
-    },
-    { key: 'grade_display', header: 'Grade', render: (r) => r.grade_display || '—' },
-  ];
-
-  const formFields = [
-    { name: 'academic_year', label: 'Academic Year', type: 'select', required: true, options: yearOptions },
-    { name: 'title', label: 'Title', required: true },
-    { name: 'event_type', label: 'Event Type', type: 'select', required: true, options: EVENT_TYPE_OPTIONS },
-    { name: 'start_date', label: 'Start Date', type: 'date', required: true },
-    { name: 'end_date', label: 'End Date', type: 'date' },
-    { name: 'grade_level', label: 'Grade (optional)', type: 'select', options: GRADE_FORM_OPTIONS },
-    { name: 'description', label: 'Description' },
-  ];
-
-  const preparePayload = (data) => ({
-    academic_year: Number(data.academic_year),
-    title: data.title?.trim(),
-    event_type: data.event_type,
-    start_date: data.start_date,
-    end_date: data.end_date || data.start_date,
-    grade_level: data.grade_level ? Number(data.grade_level) : null,
-    description: data.description?.trim() || '',
+function AnnualYearListTab() {
+  const { data: years = [], isLoading, isError } = useQuery({
+    queryKey: ['annual-schedule', 'year-options'],
+    queryFn: () => academicsSubApi.annualSchedules.yearOptions(),
   });
 
+  const sortedYears = useMemo(
+    () => [...years].sort((a, b) => String(b.name).localeCompare(String(a.name))),
+    [years],
+  );
+
   return (
-    <CrudModulePage
-      title="Annual Schedule"
-      description="School-wide calendar: terms, holidays, exams, and events by Ethiopian academic year"
-      queryKey={['timetable', 'annual-schedule']}
-      api={academicsSubApi.annualSchedules}
-      columns={columns}
-      formFields={formFields}
-      preparePayload={preparePayload}
-      filters={[
-        { key: 'academic_year', label: 'Academic Year', options: yearOptions },
-        { key: 'event_type', label: 'Type', options: EVENT_TYPE_OPTIONS },
-        { key: 'grade_level', label: 'Grade', options: GRADE_FILTER_OPTIONS },
-      ]}
-      searchPlaceholder="Search annual schedule..."
-      createLabel="Add Event"
-      getDefaultValues={() => ({
-        academic_year: defaultYearId || '',
-        title: '',
-        event_type: 'EVENT',
-        start_date: '',
-        end_date: '',
-        grade_level: '',
-        description: '',
-      })}
-    />
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Annual Schedule — Academic Years</h3>
+        <p className="text-xs text-gray-500">Select a year to view and manage its calendar events</p>
+      </div>
+
+      {isLoading ? (
+        <TableSkeleton rows={4} />
+      ) : isError ? (
+        <EmptyState title="Failed to load years" description="Please try again." />
+      ) : sortedYears.length === 0 ? (
+        <EmptyState title="No academic years" description="Add Ethiopian calendar years under Academics seed or settings." />
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {sortedYears.map((year) => (
+            <li key={year.id}>
+              <Link to={annualScheduleYearPath(year.id)} className="block h-full">
+                <Card padding className="group h-full transition-shadow hover:shadow-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900 group-hover:text-primary dark:text-white">
+                        {year.name}
+                      </p>
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                        {year.event_count} {year.event_count === 1 ? 'event' : 'events'}
+                      </p>
+                    </div>
+                    <FiChevronRight className="shrink-0 text-gray-400 group-hover:text-primary" />
+                  </div>
+                </Card>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -170,36 +139,29 @@ function ClassTimetableTab({ classOptions, subjectOptions, teacherOptions, roomO
 export default function TimetablePage() {
   const [activeTab, setActiveTab] = useState('annual');
 
-  const { data: yearsData } = useQuery({
-    queryKey: ['academic-years'],
-    queryFn: () => academicsSubApi.years.list({ page_size: 50 }),
-  });
-
   const { data: classesData } = useQuery({
     queryKey: ['school-classes'],
     queryFn: () => academicsSubApi.classes.list({ page_size: 100 }),
+    enabled: activeTab === 'class',
   });
 
   const { data: subjectsData } = useQuery({
     queryKey: ['subjects'],
     queryFn: () => academicsSubApi.subjects.list({ page_size: 100 }),
+    enabled: activeTab === 'class',
   });
 
   const { data: teachersData } = useQuery({
     queryKey: ['teachers-options'],
     queryFn: () => teachersApi.list({ page_size: 100 }),
+    enabled: activeTab === 'class',
   });
 
   const { data: roomsData } = useQuery({
     queryKey: ['rooms'],
     queryFn: () => academicsSubApi.rooms.list({ page_size: 100 }),
+    enabled: activeTab === 'class',
   });
-
-  const yearOptions = useMemo(() => toEthiopianYearOptions(yearsData), [yearsData]);
-  const defaultYearId = useMemo(() => {
-    const match = yearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR);
-    return match?.value || yearOptions[0]?.value || '';
-  }, [yearOptions]);
 
   const classOptions = useMemo(() => {
     const list = classesData?.results || classesData || [];
@@ -249,7 +211,7 @@ export default function TimetablePage() {
       </div>
 
       {activeTab === 'annual' ? (
-        <AnnualScheduleTab yearOptions={yearOptions} defaultYearId={defaultYearId} />
+        <AnnualYearListTab />
       ) : (
         <ClassTimetableTab
           classOptions={classOptions}

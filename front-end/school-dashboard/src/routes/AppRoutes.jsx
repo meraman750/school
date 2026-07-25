@@ -34,6 +34,8 @@ import AcademicsItemViewerPage from '../pages/academics/AcademicsItemViewerPage'
 
 import TimetablePage from '../pages/timetable/TimetablePage';
 
+import AnnualScheduleYearPage from '../pages/timetable/AnnualScheduleYearPage';
+
 import ExaminationPage from '../pages/examination/ExaminationPage';
 
 import LibraryPage from '../pages/library/LibraryPage';
@@ -137,6 +139,8 @@ export default function AppRoutes() {
           <Route path="academics/:typeSlug/subject/:subjectId" element={<RoleGuard moduleKey="academics"><AcademicsSubjectItemsPage /></RoleGuard>} />
 
           <Route path="timetable" element={<RoleGuard moduleKey="timetable"><TimetablePage /></RoleGuard>} />
+
+          <Route path="timetable/annual/:yearId" element={<RoleGuard moduleKey="timetable"><AnnualScheduleYearPage /></RoleGuard>} />
 
           <Route path="examination" element={<RoleGuard moduleKey="examination"><ExaminationPage /></RoleGuard>} />
 

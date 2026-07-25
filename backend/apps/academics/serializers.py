@@ -4,7 +4,7 @@ from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
-    GradeAcademicItem, GradeAcademicItemAttachment, AnnualSchedule,
+    GradeAcademicItem, GradeAcademicItemAttachment, AnnualSchedule, AnnualScheduleAttachment,
 )
 
 ALLOWED_ACADEMIC_UPLOAD_TYPES = {
@@ -17,6 +17,9 @@ ALLOWED_ACADEMIC_UPLOAD_TYPES = {
 ALLOWED_ACADEMIC_UPLOAD_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp', '.gif'}
 
 
+ALLOWED_ANNUAL_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+
+
 def validate_academic_upload_file(uploaded_file):
     ext = ('.' + uploaded_file.name.rsplit('.', 1)[-1].lower()) if '.' in uploaded_file.name else ''
     content_type = (uploaded_file.content_type or '').lower()
@@ -26,6 +29,15 @@ def validate_academic_upload_file(uploaded_file):
         )
     if uploaded_file.size > 15 * 1024 * 1024:
         raise serializers.ValidationError('Each file must be 15 MB or smaller.')
+
+
+def validate_annual_image_file(uploaded_file):
+    ext = ('.' + uploaded_file.name.rsplit('.', 1)[-1].lower()) if '.' in uploaded_file.name else ''
+    content_type = (uploaded_file.content_type or '').lower()
+    if not content_type.startswith('image/') and ext not in ALLOWED_ANNUAL_IMAGE_EXTENSIONS:
+        raise serializers.ValidationError('Each file must be an image (JPG, PNG, WEBP, or GIF).')
+    if uploaded_file.size > 10 * 1024 * 1024:
+        raise serializers.ValidationError('Each image must be 10 MB or smaller.')
 
 
 class AcademicYearSerializer(serializers.ModelSerializer):
@@ -179,16 +191,36 @@ class TimetableSerializer(serializers.ModelSerializer):
         )
 
 
+class AnnualScheduleAttachmentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AnnualScheduleAttachment
+        fields = ('id', 'file', 'file_url', 'original_filename', 'created_at')
+        read_only_fields = fields
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        if obj.file:
+            return obj.file.url
+        return None
+
+
 class AnnualScheduleSerializer(serializers.ModelSerializer):
     academic_year_name = serializers.CharField(source='academic_year.name', read_only=True)
     event_type_label = serializers.SerializerMethodField()
     grade_display = serializers.SerializerMethodField()
+    attachments = AnnualScheduleAttachmentSerializer(many=True, read_only=True)
+    image_count = serializers.SerializerMethodField()
 
     class Meta:
         model = AnnualSchedule
         fields = (
             'id', 'academic_year', 'academic_year_name', 'title', 'event_type', 'event_type_label',
-            'start_date', 'end_date', 'grade_level', 'grade_display', 'description', 'created_at',
+            'start_date', 'end_date', 'grade_level', 'grade_display', 'description',
+            'attachments', 'image_count', 'created_at',
         )
         read_only_fields = ('created_at',)
 
@@ -200,6 +232,17 @@ class AnnualScheduleSerializer(serializers.ModelSerializer):
             return f'Grade {obj.grade_level}'
         return 'All grades'
 
+    def get_image_count(self, obj):
+        return obj.attachments.filter(is_deleted=False).count()
+
+    def to_internal_value(self, data):
+        if hasattr(data, 'get'):
+            mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+            if mutable.get('grade_level') == '':
+                mutable['grade_level'] = None
+            data = mutable
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         start = attrs.get('start_date', getattr(self.instance, 'start_date', None))
         end = attrs.get('end_date', attrs.get('start_date', getattr(self.instance, 'end_date', None)))
@@ -208,19 +251,47 @@ class AnnualScheduleSerializer(serializers.ModelSerializer):
         grade = attrs.get('grade_level')
         if grade is not None and (grade < 1 or grade > 8):
             raise serializers.ValidationError({'grade_level': 'Grade level must be between 1 and 8.'})
+        request = self.context.get('request')
+        if request and request.FILES.getlist('files'):
+            for uploaded in request.FILES.getlist('files'):
+                validate_annual_image_file(uploaded)
         return attrs
+
+    def _save_attachments(self, schedule, request):
+        user = request.user
+        for uploaded in request.FILES.getlist('files'):
+            AnnualScheduleAttachment.objects.create(
+                schedule=schedule,
+                file=uploaded,
+                original_filename=uploaded.name,
+                created_by=user,
+                updated_by=user,
+            )
 
     def create(self, validated_data):
         user = self.context['request'].user
+        request = self.context['request']
         validated_data.pop('created_by', None)
         validated_data.pop('updated_by', None)
         if not validated_data.get('end_date'):
             validated_data['end_date'] = validated_data['start_date']
-        return AnnualSchedule.objects.create(
+        schedule = AnnualSchedule.objects.create(
             created_by=user,
             updated_by=user,
             **validated_data,
         )
+        self._save_attachments(schedule, request)
+        return schedule
+
+    def update(self, instance, validated_data):
+        request = self.context['request']
+        validated_data.pop('academic_year', None)
+        validated_data.pop('created_by', None)
+        validated_data['updated_by'] = request.user
+        schedule = super().update(instance, validated_data)
+        if request.FILES.getlist('files'):
+            self._save_attachments(schedule, request)
+        return schedule
 
 
 class RoomSerializer(serializers.ModelSerializer):

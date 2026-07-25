@@ -10,7 +10,7 @@ from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
-    GradeAcademicItem, GradeAcademicItemAttachment, Subject, AnnualSchedule,
+    GradeAcademicItem, GradeAcademicItemAttachment, Subject, AnnualSchedule, AnnualScheduleAttachment,
 )
 from .serializers import (
     AcademicYearSerializer, TermSerializer, SemesterSerializer, DepartmentSerializer,
@@ -150,12 +150,37 @@ class TimetableViewSet(BaseModelViewSet):
 
 
 class AnnualScheduleViewSet(BaseModelViewSet):
-    queryset = AnnualSchedule.objects.select_related('academic_year').filter(is_deleted=False)
+    queryset = AnnualSchedule.objects.select_related('academic_year').filter(
+        is_deleted=False,
+    ).prefetch_related(
+        Prefetch(
+            'attachments',
+            queryset=AnnualScheduleAttachment.objects.filter(is_deleted=False),
+        ),
+    )
     serializer_class = AnnualScheduleSerializer
     permission_classes = [IsStaffMember]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filterset_fields = ['academic_year', 'event_type', 'grade_level']
     search_fields = ['title', 'description']
     ordering_fields = ['start_date', 'title']
+
+    @action(detail=False, methods=['get'], url_path='year-options')
+    def year_options(self, request):
+        years = AcademicYear.objects.filter(
+            is_deleted=False,
+            name__endswith=' E.C.',
+        ).annotate(
+            event_count=Count(
+                'annual_schedules',
+                filter=Q(annual_schedules__is_deleted=False),
+            ),
+        ).order_by('-start_date')
+        return Response([{
+            'id': year.id,
+            'name': year.name,
+            'event_count': year.event_count,
+        } for year in years])
 
 
 class RoomViewSet(BaseModelViewSet):

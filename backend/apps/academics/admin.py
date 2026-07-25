@@ -4,7 +4,7 @@ from apps.core.admin import BaseModelAdmin
 from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
-    Grade, ReportCard, Transcript, Timetable, Room, AnnualSchedule,
+    Grade, ReportCard, Transcript, Timetable, Room, AnnualSchedule, AnnualScheduleAttachment,
 )
 
 MODELS = [

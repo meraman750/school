@@ -326,6 +326,20 @@ class AnnualSchedule(BaseModel):
         return f'{self.title} ({self.academic_year})'
 
 
+class AnnualScheduleAttachment(BaseModel):
+    schedule = models.ForeignKey(
+        AnnualSchedule, on_delete=models.CASCADE, related_name='attachments',
+    )
+    file = models.FileField(upload_to='annual-schedule/%Y/%m/')
+    original_filename = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return self.original_filename or str(self.file)
+
+
 class Room(BaseModel):
     name = models.CharField(max_length=50)
     building = models.CharField(max_length=50, blank=True)
