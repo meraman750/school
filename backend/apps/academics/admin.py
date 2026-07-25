@@ -10,7 +10,7 @@ from .models import (
 MODELS = [
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
-    Grade, ReportCard, Transcript, Timetable, Room,
+    Grade, ReportCard, Transcript, Timetable, Room, AnnualSchedule,
 ]
 
 for model in MODELS:
