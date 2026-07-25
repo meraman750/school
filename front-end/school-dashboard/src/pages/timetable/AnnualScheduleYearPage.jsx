@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { FiArrowLeft, FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import EmptyState from '../../components/ui/EmptyState';
@@ -10,15 +10,12 @@ import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import Select from '../../components/ui/Select';
 import { TableSkeleton } from '../../components/ui/Skeleton';
-import Table from '../../components/ui/Table';
 import Textarea from '../../components/ui/Textarea';
 import AnnualScheduleTimeline, { AnnualEventDetailModal } from '../../components/timetable/AnnualScheduleTimeline';
-import usePagination from '../../hooks/usePagination';
 import {
   useCreateMutation, useDeleteMutation, useListQuery, useUpdateMutation,
 } from '../../hooks/useApi';
 import { academicsSubApi } from '../../services/api';
-import { formatDate } from '../../utils/formatters';
 import {
   buildAnnualEventFormData, EVENT_TYPE_OPTIONS, GRADE_FORM_OPTIONS,
 } from './timetableConstants';
@@ -107,7 +104,6 @@ export default function AnnualScheduleYearPage() {
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [detailEvent, setDetailEvent] = useState(null);
-  const { queryParams } = usePagination();
 
   const { data: years = [] } = useQuery({
     queryKey: ['annual-schedule', 'year-options'],
@@ -124,7 +120,6 @@ export default function AnnualScheduleYearPage() {
   const fallbackYear = fallbackList.find((y) => y.id === numericYearId);
 
   const listParams = {
-    ...queryParams,
     academic_year: numericYearId,
     page_size: 100,
   };
@@ -166,58 +161,6 @@ export default function AnnualScheduleYearPage() {
     }
   };
 
-  const columns = [
-    {
-      key: 'title',
-      header: 'Title',
-      render: (r) => <span className="font-semibold text-gray-900 dark:text-white">{r.title}</span>,
-    },
-    { key: 'event_type_label', header: 'Type', render: (r) => r.event_type_label || r.event_type },
-    {
-      key: 'dates',
-      header: 'Dates',
-      render: (r) => {
-        if (!r.start_date) return '—';
-        if (r.end_date && r.end_date !== r.start_date) {
-          return `${formatDate(r.start_date)} – ${formatDate(r.end_date)}`;
-        }
-        return formatDate(r.start_date);
-      },
-    },
-    { key: 'grade_display', header: 'Grade', render: (r) => r.grade_display || '—' },
-    {
-      key: 'images',
-      header: 'Images',
-      render: (r) => {
-        const count = r.image_count ?? (r.attachments || []).length;
-        return count ? `${count} image${count === 1 ? '' : 's'}` : '—';
-      },
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      className: 'text-right',
-      render: (row) => (
-        <div className="flex justify-end gap-1">
-          <button
-            type="button"
-            onClick={() => { setEditing(row); setModalOpen(true); }}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary"
-          >
-            <FiEdit2 />
-          </button>
-          <button
-            type="button"
-            onClick={() => setDeleteTarget(row)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-          >
-            <FiTrash2 />
-          </button>
-        </div>
-      ),
-    },
-  ];
-
   const yearName = year?.name || fallbackYear?.name || 'Academic Year';
   const yearRecord = year || fallbackYear;
   const events = data?.results || [];
@@ -249,22 +192,19 @@ export default function AnnualScheduleYearPage() {
         <EmptyState title="Failed to load events" description="Please try again." />
       ) : (
         <>
-          <AnnualScheduleTimeline
-            events={events}
-            yearRecord={yearRecord}
-            onEventClick={setDetailEvent}
-          />
-
-          {events.length === 0 ? (
+          {events.length === 0 && (
             <EmptyState
               title="No events yet"
               description={`Add the first event for ${yearName}.`}
               actionLabel="Add Event"
               onAction={() => { setEditing(null); setModalOpen(true); }}
             />
-          ) : (
-            <Table columns={columns} data={events} />
           )}
+          <AnnualScheduleTimeline
+            events={events}
+            yearRecord={yearRecord}
+            onEventClick={setDetailEvent}
+          />
         </>
       )}
 
@@ -273,6 +213,7 @@ export default function AnnualScheduleYearPage() {
         isOpen={Boolean(detailEvent)}
         onClose={() => setDetailEvent(null)}
         onEdit={(ev) => { setEditing(ev); setModalOpen(true); }}
+        onDelete={(ev) => setDeleteTarget(ev)}
       />
 
       <AnnualEventModal

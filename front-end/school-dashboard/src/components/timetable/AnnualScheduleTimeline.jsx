@@ -93,7 +93,7 @@ function AttachmentImage({ attachment }) {
   );
 }
 
-export function AnnualEventDetailModal({ event, isOpen, onClose, onEdit }) {
+export function AnnualEventDetailModal({ event, isOpen, onClose, onEdit, onDelete }) {
   if (!event) return null;
 
   const dateLabel = event.end_date && event.end_date !== event.start_date
@@ -122,15 +122,28 @@ export function AnnualEventDetailModal({ event, isOpen, onClose, onEdit }) {
             ))}
           </div>
         )}
-        {onEdit && (
-          <div className="flex justify-end pt-2">
-            <button
-              type="button"
-              onClick={() => { onClose(); onEdit(event); }}
-              className="text-sm font-semibold text-primary hover:underline"
-            >
-              Edit event
-            </button>
+        {(onEdit || onDelete) && (
+          <div className="flex items-center justify-between gap-2 pt-2">
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={() => { onClose(); onDelete(event); }}
+                className="text-sm font-semibold text-red-600 hover:underline"
+              >
+                Delete
+              </button>
+            ) : (
+              <span />
+            )}
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => { onClose(); onEdit(event); }}
+                className="text-sm font-semibold text-primary hover:underline"
+              >
+                Edit event
+              </button>
+            )}
           </div>
         )}
       </div>
