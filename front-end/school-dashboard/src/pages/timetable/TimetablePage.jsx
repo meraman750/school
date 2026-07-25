@@ -1,27 +1,22 @@
-import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FiChevronRight } from 'react-icons/fi';
-import CrudModulePage from '../../components/shared/CrudModulePage';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
-import { academicsSubApi, teachersApi } from '../../services/api';
-import { annualScheduleYearPath } from './timetableConstants';
+import { academicsSubApi } from '../../services/api';
+import {
+  GRADE_LEVELS,
+  annualScheduleYearPath,
+  classTimetableGradePath,
+} from './timetableConstants';
 
 const TABS = [
   { key: 'annual', label: 'Annual Schedule' },
   { key: 'class', label: 'Class Timetable' },
 ];
 
-const DAY_OPTIONS = [
-  { value: '1', label: 'Monday' },
-  { value: '2', label: 'Tuesday' },
-  { value: '3', label: 'Wednesday' },
-  { value: '4', label: 'Thursday' },
-  { value: '5', label: 'Friday' },
-  { value: '6', label: 'Saturday' },
-];
 
 function AnnualYearListTab() {
   const { data: years = [], isLoading, isError } = useQuery({
@@ -74,122 +69,40 @@ function AnnualYearListTab() {
   );
 }
 
-function ClassTimetableTab({ classOptions, subjectOptions, teacherOptions, roomOptions }) {
-  const columns = [
-    { key: 'day_label', header: 'Day', render: (r) => r.day_label || '—' },
-    {
-      key: 'time',
-      header: 'Time',
-      render: (r) => (r.start_time && r.end_time ? `${r.start_time} – ${r.end_time}` : '—'),
-    },
-    { key: 'school_class_name', header: 'Class', render: (r) => r.school_class_name || '—' },
-    { key: 'subject_name', header: 'Subject', render: (r) => r.subject_name || '—' },
-    { key: 'teacher_name', header: 'Teacher', render: (r) => r.teacher_name || '—' },
-    { key: 'room_name', header: 'Room', render: (r) => r.room_name || '—' },
-  ];
-
-  const formFields = [
-    { name: 'school_class', label: 'Class', type: 'select', required: true, options: classOptions },
-    { name: 'subject', label: 'Subject', type: 'select', required: true, options: subjectOptions },
-    { name: 'teacher', label: 'Teacher', type: 'select', required: true, options: teacherOptions },
-    { name: 'day_of_week', label: 'Day', type: 'select', required: true, options: DAY_OPTIONS },
-    { name: 'start_time', label: 'Start Time', type: 'time', required: true },
-    { name: 'end_time', label: 'End Time', type: 'time', required: true },
-    { name: 'room', label: 'Room (optional)', type: 'select', options: [{ value: '', label: 'None' }, ...roomOptions] },
-  ];
-
-  const preparePayload = (data) => ({
-    school_class: Number(data.school_class),
-    subject: Number(data.subject),
-    teacher: Number(data.teacher),
-    day_of_week: Number(data.day_of_week),
-    start_time: data.start_time,
-    end_time: data.end_time,
-    room: data.room ? Number(data.room) : null,
-  });
-
+function ClassGradeListTab() {
   return (
-    <CrudModulePage
-      title="Class Timetable"
-      description="Weekly period schedule by class, subject, and teacher"
-      queryKey={['timetable', 'class']}
-      api={academicsSubApi.timetables}
-      columns={columns}
-      formFields={formFields}
-      preparePayload={preparePayload}
-      filters={[
-        { key: 'school_class', label: 'Class', options: classOptions },
-        { key: 'day_of_week', label: 'Day', options: DAY_OPTIONS },
-      ]}
-      searchPlaceholder="Search class timetable..."
-      createLabel="Add Period"
-      getDefaultValues={() => ({
-        school_class: '',
-        subject: '',
-        teacher: '',
-        day_of_week: '',
-        start_time: '',
-        end_time: '',
-        room: '',
-      })}
-    />
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Class Timetable — Grades</h3>
+        <p className="text-xs text-gray-500">Choose a grade, then section A, B, or C to manage the weekly schedule</p>
+      </div>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4">
+        {GRADE_LEVELS.map((grade) => (
+          <li key={grade}>
+            <Link to={classTimetableGradePath(grade)} className="block h-full">
+              <Card padding className="group h-full transition-shadow hover:shadow-md">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-lg font-bold text-gray-900 group-hover:text-primary dark:text-white">
+                    Grade {grade}
+                  </p>
+                  <FiChevronRight className="shrink-0 text-gray-400 group-hover:text-primary" />
+                </div>
+              </Card>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
 export default function TimetablePage() {
   const [activeTab, setActiveTab] = useState('annual');
 
-  const { data: classesData } = useQuery({
-    queryKey: ['school-classes'],
-    queryFn: () => academicsSubApi.classes.list({ page_size: 100 }),
-    enabled: activeTab === 'class',
-  });
-
-  const { data: subjectsData } = useQuery({
-    queryKey: ['subjects'],
-    queryFn: () => academicsSubApi.subjects.list({ page_size: 100 }),
-    enabled: activeTab === 'class',
-  });
-
-  const { data: teachersData } = useQuery({
-    queryKey: ['teachers-options'],
-    queryFn: () => teachersApi.list({ page_size: 100 }),
-    enabled: activeTab === 'class',
-  });
-
-  const { data: roomsData } = useQuery({
-    queryKey: ['rooms'],
-    queryFn: () => academicsSubApi.rooms.list({ page_size: 100 }),
-    enabled: activeTab === 'class',
-  });
-
-  const classOptions = useMemo(() => {
-    const list = classesData?.results || classesData || [];
-    return list.map((c) => ({ value: String(c.id), label: c.name }));
-  }, [classesData]);
-
-  const subjectOptions = useMemo(() => {
-    const list = subjectsData?.results || subjectsData || [];
-    return list.map((s) => ({ value: String(s.id), label: s.name }));
-  }, [subjectsData]);
-
-  const teacherOptions = useMemo(() => {
-    const list = teachersData?.results || teachersData || [];
-    return list.map((t) => ({
-      value: String(t.id),
-      label: `${t.first_name || ''} ${t.last_name || ''}`.trim() || t.employee_id,
-    }));
-  }, [teachersData]);
-
-  const roomOptions = useMemo(() => {
-    const list = roomsData?.results || roomsData || [];
-    return list.map((r) => ({ value: String(r.id), label: r.name }));
-  }, [roomsData]);
-
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Timetable</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Time Schedule</h2>
         <p className="mt-0.5 text-xs text-gray-500">
           Annual school calendar and weekly class period schedules
         </p>
@@ -213,12 +126,7 @@ export default function TimetablePage() {
       {activeTab === 'annual' ? (
         <AnnualYearListTab />
       ) : (
-        <ClassTimetableTab
-          classOptions={classOptions}
-          subjectOptions={subjectOptions}
-          teacherOptions={teacherOptions}
-          roomOptions={roomOptions}
-        />
+        <ClassGradeListTab />
       )}
     </div>
   );

@@ -83,9 +83,15 @@ class SchoolClassSerializer(serializers.ModelSerializer):
 
 
 class SectionSerializer(serializers.ModelSerializer):
+    school_class_name = serializers.CharField(source='school_class.name', read_only=True)
+    grade_level = serializers.IntegerField(source='school_class.grade_level', read_only=True)
+
     class Meta:
         model = Section
-        fields = '__all__'
+        fields = (
+            'id', 'school_class', 'school_class_name', 'grade_level', 'name', 'capacity',
+            'created_at', 'updated_at',
+        )
         read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
 
 
@@ -155,6 +161,7 @@ class TranscriptSerializer(serializers.ModelSerializer):
 class TimetableSerializer(serializers.ModelSerializer):
     day_label = serializers.CharField(source='get_day_of_week_display', read_only=True)
     school_class_name = serializers.CharField(source='school_class.name', read_only=True)
+    section_name = serializers.CharField(source='section.name', read_only=True, allow_null=True)
     subject_name = serializers.CharField(source='subject.name', read_only=True)
     teacher_name = serializers.SerializerMethodField()
     room_name = serializers.CharField(source='room.name', read_only=True, allow_null=True)
@@ -162,16 +169,24 @@ class TimetableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Timetable
         fields = (
-            'id', 'school_class', 'school_class_name', 'subject', 'subject_name',
-            'teacher', 'teacher_name', 'day_of_week', 'day_label',
+            'id', 'school_class', 'school_class_name', 'section', 'section_name',
+            'subject', 'subject_name', 'teacher', 'teacher_name',
+            'day_of_week', 'day_label', 'period_number',
             'start_time', 'end_time', 'room', 'room_name',
             'created_at', 'updated_at',
         )
         read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
 
     def get_teacher_name(self, obj):
+        if not obj.teacher_id:
+            return ''
         parts = [obj.teacher.first_name, obj.teacher.last_name]
         return ' '.join(p for p in parts if p)
+
+    def validate_period_number(self, value):
+        if value is not None and (value < 1 or value > 7):
+            raise serializers.ValidationError('Period must be between 1 and 7.')
+        return value
 
     def validate(self, attrs):
         start = attrs.get('start_time', getattr(self.instance, 'start_time', None))

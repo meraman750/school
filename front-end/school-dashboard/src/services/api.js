@@ -142,7 +142,12 @@ export const dashboardApi = {
 
 export const academicsSubApi = {
   years: createResourceService('academics/academic-years'),
-  classes: createResourceService('academics/classes'),
+  classes: {
+    ...createResourceService('academics/classes'),
+    ensureGradeSections: (gradeLevel) =>
+      api.post('academics/classes/ensure-grade-sections/', { grade_level: gradeLevel }).then((r) => r.data),
+  },
+  sections: createResourceService('academics/sections'),
   subjects: createResourceService('academics/subjects'),
   assignments: createResourceService('academics/assignments'),
   exams: createResourceService('academics/examinations'),
@@ -156,7 +161,13 @@ export const academicsSubApi = {
     subjectOptions: (itemType) =>
       api.get('academics/grade-items/subject-options/', { params: { item_type: itemType } }).then((r) => r.data),
   },
-  timetables: createResourceService('academics/timetables'),
+  timetables: {
+    ...createResourceService('academics/timetables'),
+    sectionGrid: (sectionId) =>
+      api.get('academics/timetables/section-grid/', { params: { section: sectionId } }).then((r) => r.data),
+    saveSectionGrid: (payload) =>
+      api.post('academics/timetables/save-section-grid/', payload).then((r) => r.data),
+  },
   annualSchedules: {
     list: (params) => api.get('academics/annual-schedules/', { params }).then((r) => r.data),
     get: (id) => api.get(`academics/annual-schedules/${id}/`).then((r) => r.data),

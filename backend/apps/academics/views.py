@@ -1,4 +1,5 @@
 from django.db.models import Count, Prefetch, Q
+from datetime import time
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
@@ -65,9 +66,61 @@ class SchoolClassViewSet(BaseModelViewSet):
     filterset_fields = ['academic_year', 'grade_level', 'class_teacher']
     search_fields = ['name']
 
+    @action(detail=False, methods=['post'], url_path='ensure-grade-sections')
+    def ensure_grade_sections(self, request):
+        grade_level = request.data.get('grade_level')
+        if grade_level is None:
+            return Response({'detail': 'grade_level is required.'}, status=400)
+        try:
+            grade_level = int(grade_level)
+        except (TypeError, ValueError):
+            return Response({'detail': 'Invalid grade_level.'}, status=400)
+        if grade_level < 1 or grade_level > 8:
+            return Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+
+        academic_year = AcademicYear.objects.filter(is_current=True).first()
+        if not academic_year:
+            academic_year = AcademicYear.objects.order_by('-start_date').first()
+        if not academic_year:
+            return Response({'detail': 'No academic year configured.'}, status=400)
+
+        school_class = SchoolClass.objects.filter(
+            academic_year=academic_year,
+            grade_level=grade_level,
+            is_deleted=False,
+        ).first()
+        if not school_class:
+            school_class = SchoolClass.objects.create(
+                name=f'Grade {grade_level}',
+                grade_level=grade_level,
+                academic_year=academic_year,
+                capacity=40,
+                created_by=request.user,
+                updated_by=request.user,
+            )
+
+        sections = []
+        for letter in ('A', 'B', 'C'):
+            section, _ = Section.objects.get_or_create(
+                school_class=school_class,
+                name=letter,
+                defaults={
+                    'capacity': 40,
+                    'created_by': request.user,
+                    'updated_by': request.user,
+                },
+            )
+            sections.append(section)
+
+        serializer = SectionSerializer(sections, many=True)
+        return Response({
+            'school_class': SchoolClassSerializer(school_class).data,
+            'sections': serializer.data,
+        })
+
 
 class SectionViewSet(BaseModelViewSet):
-    queryset = Section.objects.all()
+    queryset = Section.objects.select_related('school_class').all()
     serializer_class = SectionSerializer
     permission_classes = [IsStaffMember]
     filterset_fields = ['school_class']
@@ -141,12 +194,84 @@ class TranscriptViewSet(BaseModelViewSet):
 
 class TimetableViewSet(BaseModelViewSet):
     queryset = Timetable.objects.select_related(
-        'school_class', 'subject', 'teacher', 'room',
+        'school_class', 'section', 'subject', 'teacher', 'room',
     ).all()
     serializer_class = TimetableSerializer
     permission_classes = [IsStaffMember]
-    filterset_fields = ['school_class', 'subject', 'teacher', 'day_of_week']
-    ordering_fields = ['day_of_week', 'start_time']
+    filterset_fields = ['school_class', 'section', 'subject', 'teacher', 'day_of_week', 'period_number']
+    ordering_fields = ['day_of_week', 'period_number', 'start_time']
+
+    PERIOD_TIMES = {
+        1: (time(8, 0), time(8, 45)),
+        2: (time(8, 50), time(9, 35)),
+        3: (time(9, 40), time(10, 25)),
+        4: (time(10, 45), time(11, 30)),
+        5: (time(11, 35), time(12, 20)),
+        6: (time(13, 30), time(14, 15)),
+        7: (time(14, 20), time(15, 5)),
+    }
+
+    @action(detail=False, methods=['get'], url_path='section-grid')
+    def section_grid(self, request):
+        section_id = request.query_params.get('section')
+        if not section_id:
+            return Response({'detail': 'section query parameter is required.'}, status=400)
+        rows = self.get_queryset().filter(section_id=section_id).order_by('day_of_week', 'period_number')
+        return Response(TimetableSerializer(rows, many=True).data)
+
+    @action(detail=False, methods=['post'], url_path='save-section-grid')
+    def save_section_grid(self, request):
+        section_id = request.data.get('section')
+        slots = request.data.get('slots', [])
+        if not section_id:
+            return Response({'detail': 'section is required.'}, status=400)
+        try:
+            section = Section.objects.select_related('school_class').get(pk=section_id, is_deleted=False)
+        except Section.DoesNotExist:
+            return Response({'detail': 'Section not found.'}, status=404)
+
+        school_class = section.school_class
+        default_teacher = school_class.class_teacher
+        if not default_teacher:
+            from apps.teachers.models import Teacher
+            default_teacher = Teacher.objects.filter(is_deleted=False).first()
+
+        existing = Timetable.all_objects.filter(section_id=section_id, is_deleted=False)
+        for row in existing:
+            row.soft_delete()
+
+        user = request.user
+        created = []
+        for slot in slots:
+            subject_id = slot.get('subject')
+            day = slot.get('day_of_week')
+            period = slot.get('period_number')
+            if not subject_id or not day or not period:
+                continue
+            try:
+                day = int(day)
+                period = int(period)
+            except (TypeError, ValueError):
+                continue
+            if period < 1 or period > 7 or day < 1 or day > 6:
+                continue
+            start_t, end_t = self.PERIOD_TIMES.get(period, (time(8, 0), time(8, 45)))
+            teacher_id = slot.get('teacher') or (default_teacher.id if default_teacher else None)
+            row = Timetable.objects.create(
+                school_class=school_class,
+                section=section,
+                subject_id=subject_id,
+                teacher_id=teacher_id,
+                day_of_week=day,
+                period_number=period,
+                start_time=start_t,
+                end_time=end_t,
+                created_by=user,
+                updated_by=user,
+            )
+            created.append(row)
+
+        return Response(TimetableSerializer(created, many=True).data)
 
 
 class AnnualScheduleViewSet(BaseModelViewSet):

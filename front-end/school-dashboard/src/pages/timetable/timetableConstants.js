@@ -11,6 +11,26 @@ export const GRADE_FORM_OPTIONS = [
   ...[1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({ value: String(g), label: `Grade ${g}` })),
 ];
 
+export const GRADE_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+
+export const CLASS_TIMETABLE_DAYS = [
+  { value: 1, label: 'Monday', short: 'Mon' },
+  { value: 2, label: 'Tuesday', short: 'Tue' },
+  { value: 3, label: 'Wednesday', short: 'Wed' },
+  { value: 4, label: 'Thursday', short: 'Thu' },
+  { value: 5, label: 'Friday', short: 'Fri' },
+];
+
+export const PERIOD_NUMBERS = [1, 2, 3, 4, 5, 6, 7];
+
+export function classTimetableGradePath(gradeLevel) {
+  return `/timetable/class/grade/${gradeLevel}`;
+}
+
+export function classTimetableSectionPath(gradeLevel, sectionId) {
+  return `/timetable/class/grade/${gradeLevel}/section/${sectionId}`;
+}
+
 export function annualScheduleYearPath(yearId) {
   return `/timetable/annual/${yearId}`;
 }

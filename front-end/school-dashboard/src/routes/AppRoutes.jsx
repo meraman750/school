@@ -36,6 +36,8 @@ import TimetablePage from '../pages/timetable/TimetablePage';
 
 import AnnualScheduleYearPage from '../pages/timetable/AnnualScheduleYearPage';
 
+import { ClassTimetableGradeRoute, ClassTimetableSectionRoute } from '../pages/timetable/ClassTimetableRoutes';
+
 import ExaminationPage from '../pages/examination/ExaminationPage';
 
 import LibraryPage from '../pages/library/LibraryPage';
@@ -141,6 +143,10 @@ export default function AppRoutes() {
           <Route path="timetable" element={<RoleGuard moduleKey="timetable"><TimetablePage /></RoleGuard>} />
 
           <Route path="timetable/annual/:yearId" element={<RoleGuard moduleKey="timetable"><AnnualScheduleYearPage /></RoleGuard>} />
+
+          <Route path="timetable/class/grade/:gradeLevel/section/:sectionId" element={<RoleGuard moduleKey="timetable"><ClassTimetableSectionRoute /></RoleGuard>} />
+
+          <Route path="timetable/class/grade/:gradeLevel" element={<RoleGuard moduleKey="timetable"><ClassTimetableGradeRoute /></RoleGuard>} />
 
           <Route path="examination" element={<RoleGuard moduleKey="examination"><ExaminationPage /></RoleGuard>} />
 

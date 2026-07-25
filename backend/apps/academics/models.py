@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from apps.core.models import BaseModel
 from apps.students.models import Student
@@ -284,15 +285,28 @@ class Timetable(BaseModel):
         SATURDAY = 6, 'Saturday'
 
     school_class = models.ForeignKey(SchoolClass, on_delete=models.CASCADE, related_name='timetables')
+    section = models.ForeignKey(
+        Section, on_delete=models.CASCADE, related_name='timetables', null=True, blank=True,
+    )
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='timetables')
-    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name='timetables')
+    teacher = models.ForeignKey(
+        Teacher, on_delete=models.CASCADE, related_name='timetables', null=True, blank=True,
+    )
     day_of_week = models.IntegerField(choices=DayOfWeek.choices)
+    period_number = models.PositiveIntegerField(null=True, blank=True)
     start_time = models.TimeField()
     end_time = models.TimeField()
     room = models.ForeignKey('Room', on_delete=models.SET_NULL, null=True, blank=True, related_name='timetables')
 
     class Meta:
-        ordering = ['day_of_week', 'start_time']
+        ordering = ['day_of_week', 'period_number', 'start_time']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['section', 'day_of_week', 'period_number'],
+                condition=Q(is_deleted=False) & Q(section__isnull=False),
+                name='unique_section_day_period',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.school_class} - {self.subject} ({self.get_day_of_week_display()})'
