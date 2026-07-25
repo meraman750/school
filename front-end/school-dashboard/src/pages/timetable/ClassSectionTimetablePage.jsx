@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FiArrowLeft, FiEdit2, FiPlus, FiSave } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
@@ -62,11 +63,20 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
   });
 
   const gridQueryKey = ['timetable', 'section-grid', sectionNumericId];
-  const { data: rows = [], isLoading, isError } = useQuery({
+  const {
+    data: rows = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: gridQueryKey,
     queryFn: () => academicsSubApi.timetables.sectionGrid(sectionNumericId),
     enabled: Boolean(sectionNumericId),
+    retry: 1,
   });
+
+  const navigate = useNavigate();
+  const sectionsListPath = classTimetableGradePath(grade);
 
   const { data: subjectsData } = useQuery({
     queryKey: ['subjects', 'timetable'],
@@ -101,6 +111,9 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
           }
         });
       });
+      if (slots.length === 0) {
+        return Promise.reject(new Error('Pick at least one subject in the grid before saving.'));
+      }
       return academicsSubApi.timetables.saveSectionGrid({
         section: sectionNumericId,
         slots,
@@ -110,6 +123,14 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
       queryClient.invalidateQueries({ queryKey: gridQueryKey });
       setHasSavedOnce(true);
       setIsEditing(false);
+      toast.success('Timetable saved');
+    },
+    onError: (err) => {
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'string'
+        ? detail
+        : (err.message || 'Could not save timetable. Try again.');
+      toast.error(msg);
     },
   });
 
@@ -156,12 +177,14 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
-          <Link
-            to={classTimetableGradePath(grade)}
+          <button
+            type="button"
+            onClick={() => navigate(sectionsListPath)}
             className="mt-1 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label="Back to sections"
           >
             <FiArrowLeft />
-          </Link>
+          </button>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">Class Timetable</p>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">{sectionTitle}</h1>
@@ -194,7 +217,12 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : isError ? (
-        <EmptyState title="Failed to load timetable" description="Please try again." />
+        <EmptyState
+          title="Failed to load timetable"
+          description="The schedule could not be loaded. If you just updated the app, restart the backend after running migrations."
+          actionLabel="Retry"
+          onAction={() => refetch()}
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <table className={`min-w-[720px] w-full border-collapse ${tableSizeClass}`}>
@@ -255,6 +283,14 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
           </table>
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={() => navigate(sectionsListPath)}
+        className="text-xs font-semibold text-primary hover:underline"
+      >
+        ← Back to sections
+      </button>
 
       <Modal isOpen={addSubjectOpen} onClose={() => setAddSubjectOpen(false)} title="Add subject" size="sm">
         <form onSubmit={handleAddSubject} className="space-y-4">

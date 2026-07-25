@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FiChevronRight } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
@@ -10,6 +10,7 @@ import {
   GRADE_LEVELS,
   annualScheduleYearPath,
   classTimetableGradePath,
+  classTimetableListPath,
 } from './timetableConstants';
 
 const TABS = [
@@ -97,7 +98,25 @@ function ClassGradeListTab() {
 }
 
 export default function TimetablePage() {
-  const [activeTab, setActiveTab] = useState('annual');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl === 'class' ? 'class' : 'annual',
+  );
+
+  useEffect(() => {
+    if (tabFromUrl === 'class') setActiveTab('class');
+    if (tabFromUrl === 'annual') setActiveTab('annual');
+  }, [tabFromUrl]);
+
+  const selectTab = (key) => {
+    setActiveTab(key);
+    if (key === 'class') {
+      setSearchParams({ tab: 'class' }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -113,7 +132,7 @@ export default function TimetablePage() {
           <button
             key={t.key}
             type="button"
-            onClick={() => setActiveTab(t.key)}
+            onClick={() => selectTab(t.key)}
             className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
               activeTab === t.key ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}

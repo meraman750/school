@@ -1,14 +1,15 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FiArrowLeft, FiChevronRight } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
-import { classTimetableGradePath, classTimetableSectionPath } from './timetableConstants';
+import { classTimetableGradePath, classTimetableListPath, classTimetableSectionPath } from './timetableConstants';
 
 export default function ClassGradeSectionsPage({ gradeLevel }) {
   const grade = Number(gradeLevel);
+  const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timetable', 'grade-sections', grade],
@@ -27,12 +28,14 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-4">
-        <Link
-          to="/timetable"
+        <button
+          type="button"
+          onClick={() => navigate(classTimetableListPath())}
           className="mt-1 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Back to grade list"
         >
           <FiArrowLeft />
-        </Link>
+        </button>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Class Timetable</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Grade {grade}</h1>
@@ -68,12 +71,13 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
         </ul>
       )}
 
-      <Link
-        to="/timetable"
+      <button
+        type="button"
+        onClick={() => navigate(classTimetableListPath())}
         className="text-xs font-semibold text-primary hover:underline"
       >
-        ← All grades
-      </Link>
+        ← Back to all grades
+      </button>
     </div>
   );
 }

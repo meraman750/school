@@ -23,6 +23,10 @@ export const CLASS_TIMETABLE_DAYS = [
 
 export const PERIOD_NUMBERS = [1, 2, 3, 4, 5, 6, 7];
 
+export function classTimetableListPath() {
+  return '/timetable?tab=class';
+}
+
 export function classTimetableGradePath(gradeLevel) {
   return `/timetable/class/grade/${gradeLevel}`;
 }
