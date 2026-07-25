@@ -125,55 +125,57 @@ function AnnualEventModal({
       title={editing ? 'Edit Event' : 'Add Event'}
       size="lg"
     >
-      <form onSubmit={handleSubmit(submit)} className="space-y-4">
-        <Input label="Academic Year" value={yearName} disabled />
-        <Input label="Title" {...register('title', { required: true })} />
-        <Select
-          label="Event Type"
-          options={EVENT_TYPE_OPTIONS}
-          {...register('event_type', { required: true })}
-        />
-        <AcademicYearDateFields
-          label="Start date"
-          required
-          yearRecord={yearRecord}
-          monthKey={startMonth}
-          day={startDay}
-          onMonthChange={handleStartMonthChange}
-          onDayChange={setStartDay}
-        />
-        <AcademicYearDateFields
-          label="End date (optional)"
-          yearRecord={yearRecord}
-          monthKey={endMonth}
-          day={endDay}
-          onMonthChange={handleEndMonthChange}
-          onDayChange={setEndDay}
-        />
-        {dateError && <p className="text-xs text-red-500">{dateError}</p>}
-        <p className="text-[10px] text-gray-500">
-          Dates are limited to this academic year. The year is set automatically.
-        </p>
-        <Select label="Grade (optional)" options={GRADE_FORM_OPTIONS} {...register('grade_level')} />
-        <Textarea label="Description" rows={3} {...register('description')} />
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">
-            {editing ? 'Add more images (optional)' : 'Images (optional, one or more)'}
-          </label>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            multiple
-            onChange={(e) => setFiles(Array.from(e.target.files || []))}
-            className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary"
+      <form onSubmit={handleSubmit(submit)} className="flex flex-col">
+        <div className="space-y-4">
+          <Input label="Academic Year" value={yearName} disabled />
+          <Input label="Title" {...register('title', { required: true })} />
+          <Select
+            label="Event Type"
+            options={EVENT_TYPE_OPTIONS}
+            {...register('event_type', { required: true })}
           />
-          {files.length > 0 && (
-            <p className="mt-2 text-xs text-gray-500">
-              {files.length} image(s): {files.map((f) => f.name).join(', ')}
-            </p>
-          )}
+          <AcademicYearDateFields
+            label="Start date"
+            required
+            yearRecord={yearRecord}
+            monthKey={startMonth}
+            day={startDay}
+            onMonthChange={handleStartMonthChange}
+            onDayChange={setStartDay}
+          />
+          <AcademicYearDateFields
+            label="End date (optional)"
+            yearRecord={yearRecord}
+            monthKey={endMonth}
+            day={endDay}
+            onMonthChange={handleEndMonthChange}
+            onDayChange={setEndDay}
+          />
+          {dateError && <p className="text-xs text-red-500">{dateError}</p>}
+          <p className="text-[10px] text-gray-500">
+            Dates are limited to this academic year. The year is set automatically.
+          </p>
+          <Select label="Grade (optional)" options={GRADE_FORM_OPTIONS} {...register('grade_level')} />
+          <Textarea label="Description" rows={3} {...register('description')} />
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-gray-300">
+              {editing ? 'Add more images (optional)' : 'Images (optional, one or more)'}
+            </label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              multiple
+              onChange={(e) => setFiles(Array.from(e.target.files || []))}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary"
+            />
+            {files.length > 0 && (
+              <p className="mt-2 text-xs text-gray-500">
+                {files.length} image(s): {files.map((f) => f.name).join(', ')}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="sticky bottom-0 -mx-6 mt-4 flex shrink-0 justify-end gap-2 border-t border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <Button type="submit" size="sm" loading={loading}>Save</Button>
         </div>
