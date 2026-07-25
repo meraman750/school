@@ -76,13 +76,13 @@ function ClassGradeListTab() {
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">Class Timetable — Grades</h3>
         <p className="text-xs text-gray-500">Choose a grade, then section A, B, or C to manage the weekly schedule</p>
       </div>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4">
+      <ul className="flex flex-col gap-3">
         {GRADE_LEVELS.map((grade) => (
           <li key={grade}>
-            <Link to={classTimetableGradePath(grade)} className="block h-full">
-              <Card padding className="group h-full transition-shadow hover:shadow-md">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-lg font-bold text-gray-900 group-hover:text-primary dark:text-white">
+            <Link to={classTimetableGradePath(grade)} className="block">
+              <Card padding className="group transition-shadow hover:shadow-md">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-base font-bold text-gray-900 group-hover:text-primary dark:text-white">
                     Grade {grade}
                   </p>
                   <FiChevronRight className="shrink-0 text-gray-400 group-hover:text-primary" />

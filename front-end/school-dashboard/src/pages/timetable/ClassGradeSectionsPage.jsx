@@ -45,17 +45,17 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
       ) : isError ? (
         <EmptyState title="Failed to load sections" description="Please try again." />
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <ul className="flex flex-col gap-3">
           {sections.map((section) => (
             <li key={section.id}>
-              <Link to={classTimetableSectionPath(grade, section.id)} className="block h-full">
-                <Card padding className="group h-full transition-shadow hover:shadow-md">
+              <Link to={classTimetableSectionPath(grade, section.id)} className="block">
+                <Card padding className="group transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-lg font-bold text-gray-900 group-hover:text-primary dark:text-white">
+                      <p className="text-base font-bold text-gray-900 group-hover:text-primary dark:text-white">
                         Section {section.name}
                       </p>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="mt-0.5 text-xs text-gray-500">
                         {data?.school_class?.name || `Grade ${grade}`}
                       </p>
                     </div>
