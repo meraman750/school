@@ -215,6 +215,15 @@ class GradeAcademicItemSerializer(serializers.ModelSerializer):
                 validate_academic_upload_file(uploaded)
         return attrs
 
+    def to_internal_value(self, data):
+        if hasattr(data, 'get'):
+            mutable = data.copy() if hasattr(data, 'copy') else dict(data)
+            for key in ('grade_level', 'subject', 'academic_year'):
+                if key in mutable and mutable.get(key) == '':
+                    mutable.pop(key, None)
+            data = mutable
+        return super().to_internal_value(data)
+
     def _save_attachments(self, item, request):
         user = request.user
         for uploaded in request.FILES.getlist('files'):
