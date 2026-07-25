@@ -73,7 +73,7 @@ export default function AcademicsItemViewerPage() {
       </div>
 
       <Card padding>
-        <InlineAttachmentViewer attachments={item.attachments || []} wrapAll />
+        <InlineAttachmentViewer attachments={item.attachments || []} />
       </Card>
     </div>
   );
