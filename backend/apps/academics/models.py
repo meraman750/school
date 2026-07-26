@@ -420,3 +420,21 @@ class GradeAcademicItemAttachment(BaseModel):
 
     def __str__(self):
         return self.original_filename or str(self.file)
+
+
+class GradeExamScheduleEntry(BaseModel):
+    grade_level = models.PositiveIntegerField()
+    subject = models.ForeignKey(
+        Subject, on_delete=models.PROTECT, related_name='grade_exam_schedule_entries',
+    )
+    exam_date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    class Meta:
+        ordering = ['grade_level', 'exam_date', 'start_time']
+        verbose_name = 'Grade exam schedule entry'
+        verbose_name_plural = 'Grade exam schedule entries'
+
+    def __str__(self):
+        return f'Grade {self.grade_level} · {self.subject} · {self.exam_date}'

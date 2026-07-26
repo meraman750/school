@@ -150,6 +150,11 @@ export const academicsSubApi = {
   subjects: createResourceService('academics/subjects'),
   assignments: createResourceService('academics/assignments'),
   exams: createResourceService('academics/examinations'),
+  gradeExamSchedules: {
+    ...createResourceService('academics/grade-exam-schedules'),
+    ensureGradeSample: (gradeLevel) =>
+      api.post('academics/grade-exam-schedules/ensure-grade-sample/', { grade_level: gradeLevel }).then((r) => r.data),
+  },
   grades: createResourceService('academics/grades'),
   gradeItems: {
     list: (params) => api.get('academics/grade-items/', { params }).then((r) => r.data),

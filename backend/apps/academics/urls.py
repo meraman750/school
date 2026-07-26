@@ -7,6 +7,7 @@ from .views import (
     LessonPlanViewSet, AssignmentViewSet, HomeworkViewSet, ExaminationViewSet,
     ExamScheduleViewSet, GradeViewSet, ReportCardViewSet, TranscriptViewSet,
     TimetableViewSet, RoomViewSet, GradeAcademicItemViewSet, AnnualScheduleViewSet,
+    GradeExamScheduleEntryViewSet,
 )
 
 router = DefaultRouter()
@@ -28,6 +29,7 @@ router.register(r'report-cards', ReportCardViewSet, basename='report-card')
 router.register(r'transcripts', TranscriptViewSet, basename='transcript')
 router.register(r'timetables', TimetableViewSet, basename='timetable')
 router.register(r'annual-schedules', AnnualScheduleViewSet, basename='annual-schedule')
+router.register(r'grade-exam-schedules', GradeExamScheduleEntryViewSet, basename='grade-exam-schedule')
 router.register(r'rooms', RoomViewSet, basename='room')
 router.register(r'grade-items', GradeAcademicItemViewSet, basename='grade-academic-item')
 

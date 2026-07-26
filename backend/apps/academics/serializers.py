@@ -5,6 +5,7 @@ from .models import (
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
     GradeAcademicItem, GradeAcademicItemAttachment, AnnualSchedule, AnnualScheduleAttachment,
+    GradeExamScheduleEntry,
 )
 
 ALLOWED_ACADEMIC_UPLOAD_TYPES = {
@@ -432,3 +433,46 @@ class GradeAcademicItemSerializer(serializers.ModelSerializer):
         if request.FILES.getlist('files'):
             self._save_attachments(item, request)
         return item
+
+
+class GradeExamScheduleEntrySerializer(serializers.ModelSerializer):
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    day_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GradeExamScheduleEntry
+        fields = (
+            'id', 'grade_level', 'subject', 'subject_name', 'exam_date', 'day_label',
+            'start_time', 'end_time', 'created_at', 'updated_at',
+        )
+        read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
+
+    def get_day_label(self, obj):
+        return obj.exam_date.strftime('%A') if obj.exam_date else ''
+
+    def validate_grade_level(self, value):
+        if value < 1 or value > 8:
+            raise serializers.ValidationError('Grade level must be between 1 and 8.')
+        return value
+
+    def validate(self, attrs):
+        start = attrs.get('start_time', getattr(self.instance, 'start_time', None))
+        end = attrs.get('end_time', getattr(self.instance, 'end_time', None))
+        if start and end and end <= start:
+            raise serializers.ValidationError({'end_time': 'End time must be after start time.'})
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data.pop('created_by', None)
+        validated_data.pop('updated_by', None)
+        return GradeExamScheduleEntry.objects.create(
+            created_by=user,
+            updated_by=user,
+            **validated_data,
+        )
+
+    def update(self, instance, validated_data):
+        validated_data.pop('created_by', None)
+        validated_data['updated_by'] = self.context['request'].user
+        return super().update(instance, validated_data)
