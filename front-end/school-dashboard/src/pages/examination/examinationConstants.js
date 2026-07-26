@@ -91,12 +91,15 @@ export function examDaySlotsFromEntries(entries) {
   return slots;
 }
 
-export function flattenExamDaySlots(daySlots) {
+export function flattenExamDaySlots(daySlots, activeDays) {
   const flat = [];
-  EXAM_WEEK_DAYS.forEach((day) => {
-    (daySlots[day.value] || []).forEach((exam) => {
+  const days = activeDays?.length
+    ? activeDays
+    : EXAM_WEEK_DAYS.map((day) => day.value);
+  days.forEach((dayValue) => {
+    (daySlots[dayValue] || []).forEach((exam) => {
       flat.push({
-        day_of_week: day.value,
+        day_of_week: dayValue,
         subject: Number(exam.subject),
         start_time: exam.start_time,
         end_time: exam.end_time,
@@ -106,6 +109,33 @@ export function flattenExamDaySlots(daySlots) {
   return flat;
 }
 
+export function activeDaysFromPlanAndSlots(scheduledWeekdays, daySlots) {
+  const ordered = [];
+  const seen = new Set();
+  (scheduledWeekdays || []).forEach((d) => {
+    const n = Number(d);
+    if (n >= 1 && n <= 7 && !seen.has(n)) {
+      seen.add(n);
+      ordered.push(n);
+    }
+  });
+  EXAM_WEEK_DAYS.forEach((day) => {
+    if ((daySlots[day.value] || []).length > 0 && !seen.has(day.value)) {
+      seen.add(day.value);
+      ordered.push(day.value);
+    }
+  });
+  return ordered;
+}
+
+export function examDayMeta(dayValue) {
+  return EXAM_WEEK_DAYS.find((d) => d.value === dayValue);
+}
+
 export function hasAnyExamSlot(daySlots) {
   return EXAM_WEEK_DAYS.some((day) => (daySlots[day.value] || []).length > 0);
+}
+
+export function hasAnyScheduledDay(activeDays) {
+  return Array.isArray(activeDays) && activeDays.length > 0;
 }

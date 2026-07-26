@@ -448,6 +448,11 @@ class GradeExamSchedulePlan(BaseModel):
         blank=True,
         help_text='Monday of the exam week (maps weekday rows to calendar dates).',
     )
+    scheduled_weekdays = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Ordered weekday numbers (1=Mon … 7=Sun) shown on the schedule.',
+    )
     subjects_per_day = models.PositiveIntegerField(
         default=1,
         help_text='Legacy planning hint; exam rows are stored per weekday slot.',

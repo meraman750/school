@@ -483,8 +483,8 @@ class GradeExamSchedulePlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = GradeExamSchedulePlan
         fields = (
-            'id', 'grade_level', 'title', 'week_start_date', 'subjects_per_day',
-            'created_at', 'updated_at',
+            'id', 'grade_level', 'title', 'week_start_date', 'scheduled_weekdays',
+            'subjects_per_day', 'created_at', 'updated_at',
         )
         read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
 

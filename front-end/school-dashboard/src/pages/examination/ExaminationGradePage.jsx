@@ -11,8 +11,10 @@ import Select from '../../components/ui/Select';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import {
+  activeDaysFromPlanAndSlots,
   defaultWeekStartMondayIso,
   EXAM_WEEK_DAYS,
+  examDayMeta,
   examDaySlotsFromEntries,
   flattenExamDaySlots,
   formatTimeRange,
@@ -38,11 +40,13 @@ export default function ExaminationGradePage() {
   const planQueryKey = ['examination', 'grade-plan', grade];
 
   const [daySlots, setDaySlots] = useState(emptyExamDaySlots);
+  const [activeDays, setActiveDays] = useState([]);
+  const [daysDirty, setDaysDirty] = useState(false);
   const [title, setTitle] = useState('');
-  const [weekStart, setWeekStart] = useState(defaultWeekStartMondayIso);
   const [isEditing, setIsEditing] = useState(true);
   const [hasSavedOnce, setHasSavedOnce] = useState(false);
 
+  const [pickDayValue, setPickDayValue] = useState('');
   const [addExamDay, setAddExamDay] = useState(null);
   const [draftSubject, setDraftSubject] = useState('');
   const [draftStart, setDraftStart] = useState('09:00');
@@ -84,29 +88,52 @@ export default function ExaminationGradePage() {
   });
 
   useEffect(() => {
-    const next = examDaySlotsFromEntries(schedule);
-    setDaySlots(next);
-    const filled = hasAnyExamSlot(next);
-    setHasSavedOnce(filled);
-    setIsEditing(!filled);
-  }, [schedule]);
+    const nextSlots = examDaySlotsFromEntries(schedule);
+    setDaySlots(nextSlots);
+    if (!daysDirty) {
+      setActiveDays(activeDaysFromPlanAndSlots(plan?.scheduled_weekdays, nextSlots));
+    }
+    const hasExams = hasAnyExamSlot(nextSlots);
+    setHasSavedOnce(hasExams);
+    setIsEditing(!hasExams);
+  }, [schedule, plan?.scheduled_weekdays, daysDirty]);
 
   useEffect(() => {
     if (!plan) return;
     setTitle(plan.title || `Grade ${grade} Exam Schedule`);
-    setWeekStart(plan.week_start_date || defaultWeekStartMondayIso());
   }, [plan, grade]);
+
+  const availableDayOptions = useMemo(() => {
+    const used = new Set(activeDays);
+    return EXAM_WEEK_DAYS.filter((d) => !used.has(d.value)).map((d) => ({
+      value: String(d.value),
+      label: d.label,
+    }));
+  }, [activeDays]);
+
+  useEffect(() => {
+    if (availableDayOptions.length && !pickDayValue) {
+      setPickDayValue(availableDayOptions[0].value);
+    }
+    if (!availableDayOptions.length) {
+      setPickDayValue('');
+    }
+  }, [availableDayOptions, pickDayValue]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const slots = flattenExamDaySlots(daySlots);
+      const slots = flattenExamDaySlots(daySlots, activeDays);
       if (slots.length === 0) {
         return Promise.reject(new Error('Add at least one exam before saving.'));
+      }
+      if (activeDays.length === 0) {
+        return Promise.reject(new Error('Add at least one day to the schedule.'));
       }
       return academicsSubApi.gradeExamSchedules.saveGradeWeek({
         grade_level: grade,
         title: title.trim() || `Grade ${grade} Exam Schedule`,
-        week_start_date: weekStart,
+        week_start_date: plan?.week_start_date || defaultWeekStartMondayIso(),
+        scheduled_days: activeDays,
         slots,
       });
     },
@@ -115,6 +142,7 @@ export default function ExaminationGradePage() {
       queryClient.invalidateQueries({ queryKey: planQueryKey });
       setHasSavedOnce(true);
       setIsEditing(false);
+      setDaysDirty(false);
       toast.success('Exam schedule saved');
     },
     onError: (err) => {
@@ -130,6 +158,26 @@ export default function ExaminationGradePage() {
 
   const subjectLabel = (subjectId) =>
     subjectOptions.find((o) => o.value === String(subjectId))?.label || '—';
+
+  const handleAddDay = () => {
+    const dayNum = Number(pickDayValue);
+    if (!dayNum || activeDays.includes(dayNum)) {
+      toast.error('Choose a day that is not already on the list');
+      return;
+    }
+    setActiveDays((prev) => [...prev, dayNum]);
+    setDaysDirty(true);
+  };
+
+  const handleRemoveDay = (dayValue) => {
+    const exams = daySlots[dayValue] || [];
+    if (exams.length > 0) {
+      toast.error('Remove exams on this day first');
+      return;
+    }
+    setActiveDays((prev) => prev.filter((d) => d !== dayValue));
+    setDaysDirty(true);
+  };
 
   const openAddExam = (dayValue) => {
     if (!subjectOptions.length) {
@@ -177,7 +225,7 @@ export default function ExaminationGradePage() {
     }));
   };
 
-  const addExamDayMeta = EXAM_WEEK_DAYS.find((d) => d.value === addExamDay);
+  const addExamDayMeta = examDayMeta(addExamDay);
   const loading = scheduleLoading || planLoading;
   const tableSizeClass = isEditing ? 'text-sm' : 'text-lg sm:text-xl';
   const examViewClass = isEditing
@@ -185,6 +233,9 @@ export default function ExaminationGradePage() {
     : 'min-h-[4rem] rounded-xl bg-white px-3 py-3 font-semibold text-gray-900 shadow-sm dark:bg-gray-900 dark:text-white text-lg sm:text-xl leading-snug';
 
   const headerTitle = title.trim() || `Grade ${grade} Exam Schedule`;
+  const visibleDays = isEditing
+    ? activeDays
+    : activeDaysFromPlanAndSlots(plan?.scheduled_weekdays, daySlots);
 
   return (
     <div className="space-y-6">
@@ -207,13 +258,13 @@ export default function ExaminationGradePage() {
                   placeholder={`Grade ${grade} Exam Schedule`}
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Add exams for each weekday, then save to publish the schedule
+                  Add days, then add exams for each day. Save when finished.
                 </p>
               </>
             ) : (
               <>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">{headerTitle}</h1>
-                <p className="text-xs text-gray-500">Grade {grade} · exam week starting {weekStart}</p>
+                <p className="text-xs text-gray-500">Grade {grade}</p>
               </>
             )}
           </div>
@@ -233,26 +284,43 @@ export default function ExaminationGradePage() {
       </div>
 
       {isEditing && (
-        <div className="max-w-xs">
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Exam week starts (Monday)
-          </label>
-          <Input
-            type="date"
-            value={weekStart}
-            onChange={(e) => setWeekStart(e.target.value)}
-          />
+        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="min-w-[200px] flex-1 max-w-xs">
+            <Select
+              label="Add day"
+              options={availableDayOptions}
+              value={pickDayValue}
+              onChange={(e) => setPickDayValue(e.target.value)}
+              placeholder={availableDayOptions.length ? 'Select day' : 'All days added'}
+              disabled={!availableDayOptions.length}
+            />
+          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleAddDay}
+            disabled={!availableDayOptions.length}
+          >
+            <FiPlus /> Add day
+          </Button>
         </div>
       )}
 
       {loading ? (
-        <TableSkeleton rows={7} />
+        <TableSkeleton rows={4} />
       ) : isError ? (
         <EmptyState
           title="Failed to load exam schedule"
           description="Please try again."
           actionLabel="Retry"
           onAction={() => refetch()}
+        />
+      ) : visibleDays.length === 0 ? (
+        <EmptyState
+          title="No days on this schedule"
+          description={isEditing ? 'Use Add day above to start building the exam week.' : 'Nothing scheduled yet.'}
+          actionLabel={isEditing ? 'Add day' : undefined}
+          onAction={isEditing ? handleAddDay : undefined}
         />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -266,17 +334,19 @@ export default function ExaminationGradePage() {
                   Exams
                 </th>
                 {isEditing && (
-                  <th className="border border-gray-200 px-3 py-3 text-right text-xs font-bold uppercase tracking-wide text-gray-600 dark:border-gray-700 w-32">
-                    Add
+                  <th className="border border-gray-200 px-3 py-3 text-right text-xs font-bold uppercase tracking-wide text-gray-600 dark:border-gray-700 w-40">
+                    Actions
                   </th>
                 )}
               </tr>
             </thead>
             <tbody>
-              {EXAM_WEEK_DAYS.map((day) => {
-                const exams = daySlots[day.value] || [];
+              {visibleDays.map((dayValue) => {
+                const day = examDayMeta(dayValue);
+                const exams = daySlots[dayValue] || [];
+                if (!day) return null;
                 return (
-                  <tr key={day.value} className="even:bg-gray-50/80 dark:even:bg-gray-800/40">
+                  <tr key={dayValue} className="even:bg-gray-50/80 dark:even:bg-gray-800/40">
                     <th className="border border-gray-200 bg-gray-50 px-3 py-4 text-left font-bold text-gray-800 dark:border-gray-700 dark:bg-gray-800/60 dark:text-white align-top">
                       <span className="hidden sm:inline">{day.label}</span>
                       <span className="sm:hidden">{day.short}</span>
@@ -304,7 +374,7 @@ export default function ExaminationGradePage() {
                                   type="button"
                                   className="shrink-0 rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
                                   title="Remove exam"
-                                  onClick={() => removeExam(day.value, exam.id)}
+                                  onClick={() => removeExam(dayValue, exam.id)}
                                 >
                                   <FiTrash2 />
                                 </button>
@@ -316,9 +386,14 @@ export default function ExaminationGradePage() {
                     </td>
                     {isEditing && (
                       <td className="border border-gray-200 p-3 text-right align-top dark:border-gray-700">
-                        <Button size="sm" variant="outline" onClick={() => openAddExam(day.value)}>
-                          <FiPlus /> Add exam
-                        </Button>
+                        <div className="flex flex-col items-end gap-2">
+                          <Button size="sm" variant="outline" onClick={() => openAddExam(dayValue)}>
+                            <FiPlus /> Add exam
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleRemoveDay(dayValue)}>
+                            Remove day
+                          </Button>
+                        </div>
                       </td>
                     )}
                   </tr>

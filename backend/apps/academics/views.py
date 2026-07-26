@@ -247,7 +247,17 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
         slots = request.data.get('slots', [])
         title = (request.data.get('title') or '').strip()
         week_start_raw = request.data.get('week_start_date')
+        scheduled_raw = request.data.get('scheduled_days', [])
         user = request.user
+
+        scheduled_weekdays = []
+        for item in scheduled_raw if isinstance(scheduled_raw, list) else []:
+            try:
+                day_num = int(item)
+            except (TypeError, ValueError):
+                continue
+            if 1 <= day_num <= 7 and day_num not in scheduled_weekdays:
+                scheduled_weekdays.append(day_num)
 
         week_start = None
         if week_start_raw:
@@ -271,6 +281,7 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
                 grade_level=grade_level,
                 title=title or f'Grade {grade_level} Exam Schedule',
                 week_start_date=week_start,
+                scheduled_weekdays=scheduled_weekdays,
                 created_by=user,
                 updated_by=user,
             )
@@ -278,7 +289,6 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
             plan.title = title or plan.title
             plan.week_start_date = week_start
             plan.updated_by = user
-            plan.save(update_fields=['title', 'week_start_date', 'updated_by', 'updated_at'])
 
         existing = GradeExamScheduleEntry.all_objects.filter(
             grade_level=grade_level, is_deleted=False,
@@ -322,9 +332,16 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
                 updated_by=user,
             )
             created.append(entry)
+            if day_of_week not in scheduled_weekdays:
+                scheduled_weekdays.append(day_of_week)
 
         if not created:
             return Response({'detail': 'Add at least one exam before saving.'}, status=400)
+
+        plan.scheduled_weekdays = scheduled_weekdays
+        plan.save(update_fields=[
+            'title', 'week_start_date', 'scheduled_weekdays', 'updated_by', 'updated_at',
+        ])
 
         return Response(GradeExamScheduleEntrySerializer(created, many=True).data)
 
