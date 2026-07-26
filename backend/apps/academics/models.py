@@ -443,9 +443,14 @@ class GradeExamScheduleEntry(BaseModel):
 class GradeExamSchedulePlan(BaseModel):
     grade_level = models.PositiveIntegerField(unique=True)
     title = models.CharField(max_length=200, default='Exam Schedule')
+    week_start_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Monday of the exam week (maps weekday rows to calendar dates).',
+    )
     subjects_per_day = models.PositiveIntegerField(
         default=1,
-        help_text='Target number of exam sessions per day (multiple subjects, different times).',
+        help_text='Legacy planning hint; exam rows are stored per weekday slot.',
     )
 
     class Meta:

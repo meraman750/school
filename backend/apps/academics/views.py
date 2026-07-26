@@ -1,4 +1,4 @@
-from datetime import date, timedelta, time
+from datetime import date, timedelta, time, datetime
 
 from django.db.models import Count, Prefetch, Q
 from rest_framework.decorators import action
@@ -231,59 +231,90 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
         serializer.save()
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'], url_path='ensure-grade-sample')
-    def ensure_grade_sample(self, request):
+    @staticmethod
+    def _next_monday(from_day=None):
+        base = from_day or date.today()
+        while base.weekday() != 0:
+            base += timedelta(days=1)
+        return base
+
+    @action(detail=False, methods=['post'], url_path='save-grade-week')
+    def save_grade_week(self, request):
         grade_level, err = self._parse_grade_level(request)
         if err:
             return err
 
+        slots = request.data.get('slots', [])
+        title = (request.data.get('title') or '').strip()
+        week_start_raw = request.data.get('week_start_date')
         user = request.user
-        plan, _ = GradeExamSchedulePlan.objects.get_or_create(
-            grade_level=grade_level,
-            defaults={
-                'title': f'Grade {grade_level} Exam Schedule',
-                'subjects_per_day': 1,
-                'created_by': user,
-                'updated_by': user,
-            },
+
+        week_start = None
+        if week_start_raw:
+            try:
+                if isinstance(week_start_raw, str):
+                    week_start = date.fromisoformat(week_start_raw[:10])
+                else:
+                    week_start = week_start_raw
+            except (TypeError, ValueError):
+                return Response({'detail': 'Invalid week_start_date.'}, status=400)
+        if week_start is None:
+            week_start = self._next_monday()
+        elif week_start.weekday() != 0:
+            return Response({'detail': 'week_start_date must be a Monday.'}, status=400)
+
+        plan = GradeExamSchedulePlan.objects.filter(
+            grade_level=grade_level, is_deleted=False,
+        ).first()
+        if not plan:
+            plan = GradeExamSchedulePlan.objects.create(
+                grade_level=grade_level,
+                title=title or f'Grade {grade_level} Exam Schedule',
+                week_start_date=week_start,
+                created_by=user,
+                updated_by=user,
+            )
+        else:
+            plan.title = title or plan.title
+            plan.week_start_date = week_start
+            plan.updated_by = user
+            plan.save(update_fields=['title', 'week_start_date', 'updated_by', 'updated_at'])
+
+        existing = GradeExamScheduleEntry.all_objects.filter(
+            grade_level=grade_level, is_deleted=False,
         )
-        subjects_per_day = max(1, min(8, plan.subjects_per_day))
-
-        existing = self.get_queryset().filter(grade_level=grade_level)
-        if existing.exists():
-            return Response(GradeExamScheduleEntrySerializer(existing, many=True).data)
-
-        subjects = list(Subject.objects.filter(is_deleted=False).order_by('name')[:6])
-        if not subjects:
-            return Response({'detail': 'Add subjects before creating an exam schedule.'}, status=400)
-
-        base = date.today()
-        while base.weekday() >= 5:
-            base += timedelta(days=1)
-        while base.weekday() != 0:
-            base += timedelta(days=1)
-
-        daily_slots = [
-            (time(9, 0), time(11, 0)),
-            (time(11, 30), time(13, 0)),
-            (time(14, 0), time(16, 0)),
-            (time(16, 30), time(18, 0)),
-        ][:subjects_per_day]
-
-        def next_weekday(d):
-            while d.weekday() >= 5:
-                d += timedelta(days=1)
-            return d
+        for row in existing:
+            row.soft_delete()
 
         created = []
-        for index, subject in enumerate(subjects):
-            day_offset = index // subjects_per_day
-            slot_index = index % subjects_per_day
-            exam_date = next_weekday(base + timedelta(days=day_offset))
-            start_t, end_t = daily_slots[slot_index % len(daily_slots)]
+        for slot in slots:
+            subject_id = slot.get('subject')
+            day_of_week = slot.get('day_of_week')
+            start_raw = slot.get('start_time')
+            end_raw = slot.get('end_time')
+            if not subject_id or not day_of_week or not start_raw or not end_raw:
+                continue
+            try:
+                day_of_week = int(day_of_week)
+            except (TypeError, ValueError):
+                continue
+            if day_of_week < 1 or day_of_week > 7:
+                continue
+            exam_date = week_start + timedelta(days=day_of_week - 1)
+
+            def parse_clock(raw):
+                s = str(raw).strip()
+                if len(s) >= 5:
+                    return datetime.strptime(s[:5], '%H:%M').time()
+                return time.fromisoformat(s[:8])
+
+            start_t = start_raw if isinstance(start_raw, time) else parse_clock(start_raw)
+            end_t = end_raw if isinstance(end_raw, time) else parse_clock(end_raw)
+            if end_t <= start_t:
+                continue
             entry = GradeExamScheduleEntry.objects.create(
                 grade_level=grade_level,
-                subject=subject,
+                subject_id=subject_id,
                 exam_date=exam_date,
                 start_time=start_t,
                 end_time=end_t,
@@ -292,10 +323,31 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
             )
             created.append(entry)
 
-        return Response(
-            GradeExamScheduleEntrySerializer(created, many=True).data,
-            status=201,
+        if not created:
+            return Response({'detail': 'Add at least one exam before saving.'}, status=400)
+
+        return Response(GradeExamScheduleEntrySerializer(created, many=True).data)
+
+    @action(detail=False, methods=['post'], url_path='ensure-grade-sample')
+    def ensure_grade_sample(self, request):
+        grade_level, err = self._parse_grade_level(request)
+        if err:
+            return err
+
+        user = request.user
+        GradeExamSchedulePlan.objects.get_or_create(
+            grade_level=grade_level,
+            defaults={
+                'title': f'Grade {grade_level} Exam Schedule',
+                'week_start_date': self._next_monday(),
+                'subjects_per_day': 1,
+                'created_by': user,
+                'updated_by': user,
+            },
         )
+
+        existing = self.get_queryset().filter(grade_level=grade_level).order_by('exam_date', 'start_time')
+        return Response(GradeExamScheduleEntrySerializer(existing, many=True).data)
 
 
 class GradeViewSet(BaseModelViewSet):
