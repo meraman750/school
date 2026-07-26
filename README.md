@@ -99,6 +99,8 @@ Full checklist: **[DEPLOY.md](./DEPLOY.md)**
 
 **Oracle Cloud (free tier), step-by-step:** **[DEPLOY-ORACLE.md](./DEPLOY-ORACLE.md)**
 
+**No credit card / other hosts:** **[DEPLOY-ALTERNATIVES.md](./DEPLOY-ALTERNATIVES.md)**
+
 ## License
 
 Proprietary - Biruk Academy Primary School
