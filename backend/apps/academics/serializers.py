@@ -444,7 +444,7 @@ class GradeExamScheduleEntrySerializer(serializers.ModelSerializer):
         model = GradeExamScheduleEntry
         fields = (
             'id', 'grade_level', 'subject', 'subject_name', 'exam_date', 'day_label',
-            'start_time', 'end_time', 'created_at', 'updated_at',
+            'start_time', 'end_time', 'schedule_slot_index', 'created_at', 'updated_at',
         )
         read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
 

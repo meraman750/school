@@ -79,7 +79,7 @@ export default function ExaminationGradePage() {
       const list = await academicsSubApi.gradeExamSchedules.list({
         grade_level: grade,
         page_size: 100,
-        ordering: 'exam_date,start_time',
+        ordering: 'schedule_slot_index,start_time',
       });
       return list?.results || list || [];
     },

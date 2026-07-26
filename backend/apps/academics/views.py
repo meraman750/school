@@ -302,13 +302,15 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
             day_of_week = slot.get('day_of_week')
             start_raw = slot.get('start_time')
             end_raw = slot.get('end_time')
+            slot_index_raw = slot.get('schedule_slot_index', 0)
             if not subject_id or not day_of_week or not start_raw or not end_raw:
                 continue
             try:
                 day_of_week = int(day_of_week)
+                slot_index = int(slot_index_raw)
             except (TypeError, ValueError):
                 continue
-            if day_of_week < 1 or day_of_week > 7:
+            if day_of_week < 1 or day_of_week > 7 or slot_index < 0:
                 continue
             exam_date = week_start + timedelta(days=day_of_week - 1)
 
@@ -328,6 +330,7 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
                 exam_date=exam_date,
                 start_time=start_t,
                 end_time=end_t,
+                schedule_slot_index=slot_index,
                 created_by=user,
                 updated_by=user,
             )

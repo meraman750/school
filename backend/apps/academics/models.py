@@ -430,9 +430,13 @@ class GradeExamScheduleEntry(BaseModel):
     exam_date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
+    schedule_slot_index = models.PositiveIntegerField(
+        default=0,
+        help_text='Index into the plan scheduled_weekdays list for this exam row.',
+    )
 
     class Meta:
-        ordering = ['grade_level', 'exam_date', 'start_time']
+        ordering = ['grade_level', 'schedule_slot_index', 'exam_date', 'start_time']
         verbose_name = 'Grade exam schedule entry'
         verbose_name_plural = 'Grade exam schedule entries'
 

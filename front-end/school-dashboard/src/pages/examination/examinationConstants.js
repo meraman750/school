@@ -98,11 +98,21 @@ export function createDayRow(dayValue) {
   };
 }
 
+export function mapEntryFromApi(entry) {
+  return {
+    id: entry.id,
+    subject: String(entry.subject),
+    subject_name: entry.subject_name,
+    start_time: toTimeInputValue(entry.start_time),
+    end_time: toTimeInputValue(entry.end_time),
+    schedule_slot_index: entry.schedule_slot_index ?? 0,
+  };
+}
+
 export function hydrateExamScheduleFromServer(scheduledWeekdays, entries) {
-  const daySlots = examDaySlotsFromEntries(entries);
+  const scheduled = Array.isArray(scheduledWeekdays) ? scheduledWeekdays : [];
   const rows = [];
   const examsByRowId = {};
-  const scheduled = Array.isArray(scheduledWeekdays) ? scheduledWeekdays : [];
 
   if (scheduled.length > 0) {
     scheduled.forEach((d) => {
@@ -112,31 +122,45 @@ export function hydrateExamScheduleFromServer(scheduledWeekdays, entries) {
       rows.push(row);
       examsByRowId[row.rowId] = [];
     });
-    const assignedByDay = {};
-    rows.forEach((row) => {
-      const { dayValue, rowId } = row;
-      if (assignedByDay[dayValue]) return;
-      examsByRowId[rowId] = [...(daySlots[dayValue] || [])];
-      assignedByDay[dayValue] = true;
-    });
   } else {
     EXAM_WEEK_DAYS.forEach((day) => {
-      if (!(daySlots[day.value] || []).length) return;
+      const dayEntries = (entries || []).filter(
+        (e) => Number(weekdayFromIsoDate(e.exam_date)) === day.value,
+      );
+      if (!dayEntries.length) return;
       const row = createDayRow(day.value);
       rows.push(row);
-      examsByRowId[row.rowId] = [...daySlots[day.value]];
+      examsByRowId[row.rowId] = dayEntries.map(mapEntryFromApi).sort((a, b) =>
+        a.start_time.localeCompare(b.start_time),
+      );
     });
+    return { rows, examsByRowId };
   }
+
+  const bySlot = {};
+  (entries || []).forEach((entry) => {
+    const mapped = mapEntryFromApi(entry);
+    const idx = mapped.schedule_slot_index;
+    if (!bySlot[idx]) bySlot[idx] = [];
+    bySlot[idx].push(mapped);
+  });
+
+  rows.forEach((row, index) => {
+    examsByRowId[row.rowId] = (bySlot[index] || []).sort((a, b) =>
+      a.start_time.localeCompare(b.start_time),
+    );
+  });
 
   return { rows, examsByRowId };
 }
 
 export function flattenExamScheduleRows(dayRows, examsByRowId) {
   const flat = [];
-  (dayRows || []).forEach((row) => {
+  (dayRows || []).forEach((row, index) => {
     (examsByRowId[row.rowId] || []).forEach((exam) => {
       flat.push({
         day_of_week: row.dayValue,
+        schedule_slot_index: index,
         subject: Number(exam.subject),
         start_time: exam.start_time,
         end_time: exam.end_time,
