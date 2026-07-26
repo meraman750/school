@@ -179,7 +179,7 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
     serializer_class = GradeExamScheduleEntrySerializer
     permission_classes = [IsStaffMember]
     filterset_fields = ['grade_level', 'subject', 'exam_date']
-    ordering_fields = ['exam_date', 'start_time']
+    ordering_fields = ['exam_date', 'start_time', 'schedule_slot_index']
 
     def _parse_grade_level(self, request):
         grade_level = request.query_params.get('grade_level')
