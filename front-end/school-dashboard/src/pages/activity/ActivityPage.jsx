@@ -78,27 +78,6 @@ function ActivityDetailModal({ activityId, onClose }) {
             </div>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-800">
-              <p className="text-[10px] font-bold uppercase text-gray-500">Module</p>
-              <p className="text-xs font-semibold">{data.module}</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-800">
-              <p className="text-[10px] font-bold uppercase text-gray-500">Action type</p>
-              <p className="text-xs font-semibold">{data.action}</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-800">
-              <p className="text-[10px] font-bold uppercase text-gray-500">HTTP method</p>
-              <p className="text-xs font-semibold">{data.http_method || data.metadata?.http_method || '—'}</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 px-3 py-2 dark:border-gray-800 sm:col-span-2">
-              <p className="text-[10px] font-bold uppercase text-gray-500">API path</p>
-              <p className="break-all font-mono text-[11px] text-gray-700 dark:text-gray-300">
-                {data.path || data.metadata?.api_path || '—'}
-              </p>
-            </div>
-          </div>
-
           {Object.keys(requestData).length > 0 && (
             <div>
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-500">Submitted data (sanitized)</p>
