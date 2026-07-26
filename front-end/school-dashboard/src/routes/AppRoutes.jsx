@@ -47,6 +47,7 @@ import DocumentDetailPage from '../pages/documents/DocumentDetailPage';
 import DocumentsPage from '../pages/documents/DocumentsPage';
 
 import ReportsPage from '../pages/reports/ReportsPage';
+import { ReportsGradeRoute, ReportsClassRoute } from '../pages/reports/ReportsRoutes';
 
 import SettingsPage from '../pages/settings/SettingsPage';
 
@@ -155,6 +156,10 @@ export default function AppRoutes() {
           <Route path="documents/:documentId" element={<RoleGuard moduleKey="documents"><DocumentDetailPage /></RoleGuard>} />
 
           <Route path="reports" element={<RoleGuard moduleKey="reports"><ReportsPage /></RoleGuard>} />
+
+          <Route path="reports/grade/:gradeLevel/section/:sectionName" element={<RoleGuard moduleKey="reports"><ReportsClassRoute /></RoleGuard>} />
+
+          <Route path="reports/grade/:gradeLevel" element={<RoleGuard moduleKey="reports"><ReportsGradeRoute /></RoleGuard>} />
 
           <Route path="settings" element={<RoleGuard moduleKey="settings"><SettingsPage /></RoleGuard>} />
 

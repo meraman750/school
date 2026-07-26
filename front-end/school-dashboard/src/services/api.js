@@ -196,15 +196,21 @@ export const academicsSubApi = {
   rooms: createResourceService('academics/rooms'),
 };
 
-export const exportReport = async (type, params = {}) => {
-  const response = await api.get(`reports/${type}/`, {
-    params: { format: 'csv', ...params },
+export const exportReport = async (type) => {
+  throw new Error(`Export is not available for "${type}".`);
+};
+
+export const exportClassStudentMarksReport = async (params) => {
+  const response = await api.get('reports/students/class-marks/', {
+    params: { format: 'excel', ...params },
     responseType: 'blob',
   });
+  const grade = params.grade_level ?? 'grade';
+  const section = params.section ?? 'section';
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `${type}-export.csv`);
+  link.setAttribute('download', `grade_${grade}_section_${section}_report.xlsx`);
   document.body.appendChild(link);
   link.click();
   link.remove();

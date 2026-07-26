@@ -85,7 +85,6 @@ export default function TeachersPage() {
       }))}
       formFields={formFields}
       preparePayload={preparePayload}
-      exportType="teachers"
       searchPlaceholder="Search teachers..."
       createLabel="Add Teacher"
       getDefaultValues={() => ({ first_name: '', last_name: '', gender: '', phone: '', subject: '' })}

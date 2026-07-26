@@ -13,6 +13,27 @@ from .models import (
 )
 
 
+def ensure_subject_from_name(name, user=None):
+    name = (name or '').strip()
+    if not name:
+        raise serializers.ValidationError('Subject name is required.')
+    existing = Subject.objects.filter(name__iexact=name, is_deleted=False).first()
+    if existing:
+        return existing
+    base_code = ''.join(ch for ch in name.upper() if ch.isalnum())[:12] or 'SUBJ'
+    code = base_code
+    suffix = 1
+    while Subject.objects.filter(code=code).exists():
+        suffix += 1
+        code = f'{base_code[:16]}{suffix}'
+    return Subject.objects.create(
+        name=name,
+        code=code,
+        created_by=user,
+        updated_by=user,
+    )
+
+
 def score_to_letter(score):
     score = float(score)
     if score >= 90:
@@ -248,9 +269,19 @@ class StudentGradeReportEntrySerializer(serializers.ModelSerializer):
 
 
 class StudentGradeReportEntryWriteSerializer(serializers.Serializer):
-    subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all())
+    subject = serializers.PrimaryKeyRelatedField(
+        queryset=Subject.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    subject_name = serializers.CharField(required=False, allow_blank=True, default='')
     score = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0, max_value=100)
     remarks = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate(self, attrs):
+        if not attrs.get('subject') and not (attrs.get('subject_name') or '').strip():
+            raise serializers.ValidationError('Each entry needs a subject or subject name.')
+        return attrs
 
 
 class StudentGradeReportSerializer(serializers.ModelSerializer):
@@ -322,9 +353,12 @@ class StudentGradeReportWriteSerializer(serializers.ModelSerializer):
         total = Decimal('0')
         for entry_data in entries_data:
             score = entry_data['score']
+            subject = entry_data.get('subject')
+            if not subject:
+                subject = ensure_subject_from_name(entry_data.get('subject_name'), user=user)
             StudentGradeReportEntry.objects.create(
                 report=report,
-                subject=entry_data['subject'],
+                subject=subject,
                 score=score,
                 grade_letter=score_to_letter(score),
                 remarks=entry_data.get('remarks', ''),
