@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL, TOKEN_KEYS } from '../utils/constants';
+import { withBasename } from '../utils/routerBase';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -82,7 +83,7 @@ api.interceptors.response.use(
     } catch (refreshError) {
       processQueue(refreshError, null);
       tokenStorage.clear();
-      window.location.href = '/dashboard/login';
+      window.location.href = withBasename('/login');
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
