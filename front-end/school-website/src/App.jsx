@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
+import ScrollToTop from './components/layout/ScrollToTop'
 import Home from './pages/Home'
 import About from './pages/About'
 import Academics from './pages/Academics'
@@ -15,7 +16,9 @@ import Search from './pages/Search'
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route element={<MainLayout />}>
         <Route index element={<Home />} />
         <Route path="about" element={<About />} />
@@ -31,5 +34,6 @@ export default function App() {
         <Route path="search" element={<Search />} />
       </Route>
     </Routes>
+    </>
   )
 }
