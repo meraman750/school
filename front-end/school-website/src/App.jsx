@@ -13,12 +13,14 @@ import Careers from './pages/Careers'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import Search from './pages/Search'
+import AdminGateway from './pages/AdminGateway'
 
 export default function App() {
   return (
     <>
       <ScrollToTop />
       <Routes>
+      <Route path="biruk-admin" element={<AdminGateway />} />
       <Route element={<MainLayout />}>
         <Route index element={<Home />} />
         <Route path="about" element={<About />} />

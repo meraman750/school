@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
 import { canAccessModule, normalizeRole } from '../utils/roles';
+import { hasDashboardEntry, redirectToPublicSite } from '../utils/dashboardAccess';
 
 import DashboardLayout from '../layouts/DashboardLayout';
 
@@ -85,7 +86,14 @@ function GuestGuard({ children }) {
 
   const { isAuthenticated } = useAuth();
 
-  return isAuthenticated ? <Navigate to="/" replace /> : children;
+  if (isAuthenticated) return <Navigate to="/" replace />;
+
+  if (!hasDashboardEntry()) {
+    redirectToPublicSite();
+    return null;
+  }
+
+  return children;
 
 }
 

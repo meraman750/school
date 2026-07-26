@@ -3,9 +3,8 @@ import { Link, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiSearch, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi'
 import { FaGraduationCap } from 'react-icons/fa'
-import { NAV_LINKS, SCHOOL_NAME, DASHBOARD_LOGIN_URL } from '../../utils/constants'
+import { NAV_LINKS, SCHOOL_NAME } from '../../utils/constants'
 import { useTheme } from '../../contexts/ThemeContext'
-import Button from '../ui/Button'
 import SearchModal from '../ui/SearchModal'
 
 export default function Header() {
@@ -76,9 +75,7 @@ export default function Header() {
                 {theme === 'dark' ? <FiSun className="text-xl" /> : <FiMoon className="text-xl" />}
               </button>
 
-              {/* <a href={DASHBOARD_LOGIN_URL} className="hidden sm:block">
-                <Button size="sm" variant="outline">Dashboard</Button>
-              </a> */}
+              {/* Dashboard entry is only via the hidden home-page gateway (biruk-admin). */}
 
               <button
                 type="button"
@@ -112,9 +109,6 @@ export default function Header() {
                     {link.label}
                   </NavLink>
                 ))}
-                <a href={DASHBOARD_LOGIN_URL} className="mt-2">
-                  <Button className="w-full" variant="outline" size="sm">Dashboard Login</Button>
-                </a>
               </nav>
             </motion.div>
           )}

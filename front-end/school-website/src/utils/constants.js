@@ -1,8 +1,20 @@
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
-export const DASHBOARD_LOGIN_URL =
-  import.meta.env.VITE_DASHBOARD_URL || 'http://localhost:3001/dashboard/login'
+/** Hidden path on the public site; only linked from the home page (not shown in nav). */
+export const DASHBOARD_ENTRY_PATH = '/biruk-admin'
+
+export const DASHBOARD_ACCESS_KEY = 'biruk_dashboard_entry'
+
+/** Dashboard sign-in URL (same origin in production: /dashboard/login). */
+export function getDashboardLoginUrl() {
+  const configured = import.meta.env.VITE_DASHBOARD_URL
+  if (configured) {
+    const base = configured.replace(/\/$/, '')
+    return base.endsWith('/login') ? base : `${base}/login`
+  }
+  return '/dashboard/login'
+}
 
 export const SCHOOL_NAME = 'Biruk Academy Primary School'
 export const SCHOOL_TAGLINE = 'Nurturing Excellence in Addis Ababa'

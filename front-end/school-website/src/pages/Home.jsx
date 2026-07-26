@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   FaChalkboardTeacher,
@@ -18,6 +19,7 @@ import { SkeletonCard } from '../components/ui/Skeleton'
 import {
   SCHOOL_NAME,
   SCHOOL_TAGLINE,
+  DASHBOARD_ENTRY_PATH,
   FALLBACK_ACHIEVEMENTS,
   FALLBACK_STATS,
   FALLBACK_WHY_CHOOSE_US,
@@ -25,6 +27,9 @@ import {
   FALLBACK_SCHOOL_INFO,
 } from '../utils/constants'
 import { useSchoolInfo } from '../hooks/useWebsiteData'
+
+const ADMIN_TAP_COUNT = 5
+const ADMIN_TAP_WINDOW_MS = 2500
 
 const iconMap = {
   FaChalkboardTeacher,
@@ -45,6 +50,22 @@ const fadeUp = {
 export default function Home() {
   const { data: schoolInfo, isLoading } = useSchoolInfo()
   const info = { ...FALLBACK_SCHOOL_INFO, ...schoolInfo }
+  const navigate = useNavigate()
+  const adminTapCount = useRef(0)
+  const adminTapTimer = useRef(null)
+
+  const handleAdminEntryTap = () => {
+    adminTapCount.current += 1
+    if (adminTapTimer.current) clearTimeout(adminTapTimer.current)
+    if (adminTapCount.current >= ADMIN_TAP_COUNT) {
+      adminTapCount.current = 0
+      navigate(DASHBOARD_ENTRY_PATH)
+      return
+    }
+    adminTapTimer.current = setTimeout(() => {
+      adminTapCount.current = 0
+    }, ADMIN_TAP_WINDOW_MS)
+  }
 
   return (
     <>
@@ -56,7 +77,17 @@ export default function Home() {
         <div className="container-wide mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
-              <Badge color="secondary" className="mb-6 bg-white/20 text-white">Welcome to {SCHOOL_NAME}</Badge>
+              <Badge
+                color="secondary"
+                className="mb-6 cursor-default select-none bg-white/20 text-white"
+                onClick={handleAdminEntryTap}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') handleAdminEntryTap()
+                }}
+                role="presentation"
+              >
+                Welcome to {SCHOOL_NAME}
+              </Badge>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
                 Nurturing Tomorrow&apos;s <span className="text-secondary">Leaders</span> in Addis Ababa
               </h1>

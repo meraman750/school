@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { authApi, tokenStorage } from '../services/api';
+import { clearDashboardEntry } from '../utils/dashboardAccess';
 
 const AuthContext = createContext(null);
 
@@ -37,6 +38,7 @@ export function AuthProvider({ children }) {
       /* ignore logout errors */
     } finally {
       tokenStorage.clear();
+      clearDashboardEntry();
       setUser(null);
     }
   }, []);
