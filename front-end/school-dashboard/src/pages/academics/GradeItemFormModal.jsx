@@ -6,12 +6,12 @@ import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import Select from '../../components/ui/Select';
 import Textarea from '../../components/ui/Textarea';
-import { GRADE_OPTIONS } from './academicsConstants';
+import { GRADE_OPTIONS, tabSingularLabel } from './academicsConstants';
 
 export default function GradeItemFormModal({
   isOpen,
   onClose,
-  tabLabel,
+  tab,
   subjectLabel,
   editing,
   yearOptions,
@@ -19,6 +19,8 @@ export default function GradeItemFormModal({
   onSubmit,
   loading,
 }) {
+  const hideAcademicYear = Boolean(tab?.hideAcademicYear);
+  const singular = tabSingularLabel(tab);
   const { register, handleSubmit, reset } = useForm();
   const [files, setFiles] = useState([]);
 
@@ -52,7 +54,7 @@ export default function GradeItemFormModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editing ? `Edit ${tabLabel.slice(0, -1)}` : `Add ${tabLabel.slice(0, -1)}`}
+      title={editing ? `Edit ${singular}` : `Add ${singular}`}
       size="lg"
     >
       <form onSubmit={handleSubmit(submit)} className="space-y-4">
@@ -64,19 +66,21 @@ export default function GradeItemFormModal({
           placeholder="Select grade..."
           {...register('grade_level', { required: true })}
         />
-        {editing ? (
-          <Input
-            label="First added for (Academic Year)"
-            value={editing.academic_year_name || '—'}
-            disabled
-          />
-        ) : (
-          <Select
-            label="Academic Year (Ethiopian Calendar — first time added)"
-            options={yearOptions}
-            placeholder="Select year..."
-            {...register('academic_year', { required: true })}
-          />
+        {!hideAcademicYear && (
+          editing ? (
+            <Input
+              label="First added for (Academic Year)"
+              value={editing.academic_year_name || '—'}
+              disabled
+            />
+          ) : (
+            <Select
+              label="Academic Year (Ethiopian Calendar — first time added)"
+              options={yearOptions}
+              placeholder="Select year..."
+              {...register('academic_year', { required: true })}
+            />
+          )
         )}
         <Textarea label="Description (optional)" rows={3} {...register('description')} />
         <div>

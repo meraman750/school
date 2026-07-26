@@ -63,7 +63,7 @@ export default function AcademicsItemViewerPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">{item.title}</h1>
           <p className="mt-1 text-xs text-gray-500">
             Grade {item.grade_level}
-            {item.academic_year_name ? ` · First added ${item.academic_year_name}` : ''}
+            {!tab.hideAcademicYear && item.academic_year_name ? ` · First added ${item.academic_year_name}` : ''}
             {item.created_at ? ` · Uploaded ${formatDate(item.created_at)}` : ''}
           </p>
           {item.description && (

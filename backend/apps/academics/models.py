@@ -374,6 +374,7 @@ class GradeAcademicItem(BaseModel):
         ASSIGNMENT = 'ASSIGNMENT', 'Assignment'
         MID_EXAM = 'MID_EXAM', 'Mid Exam'
         FINAL_EXAM = 'FINAL_EXAM', 'Final Exam'
+        MATERIAL = 'MATERIAL', 'Material'
 
     item_type = models.CharField(max_length=20, choices=ItemType.choices)
     subject = models.ForeignKey(
@@ -389,7 +390,9 @@ class GradeAcademicItem(BaseModel):
         AcademicYear,
         on_delete=models.PROTECT,
         related_name='grade_academic_items',
-        help_text='Ethiopian calendar year when this item was first added.',
+        null=True,
+        blank=True,
+        help_text='Ethiopian calendar year when this item was first added (not used for materials).',
     )
     description = models.TextField(blank=True)
 

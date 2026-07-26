@@ -363,6 +363,17 @@ class GradeAcademicItemSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get('request')
+        item_type = attrs.get('item_type')
+        if self.instance is not None:
+            item_type = item_type or self.instance.item_type
+        if item_type != GradeAcademicItem.ItemType.MATERIAL:
+            if self.instance is None and not attrs.get('academic_year'):
+                raise serializers.ValidationError(
+                    {'academic_year': 'Academic year is required for this item type.'},
+                )
+        else:
+            attrs['academic_year'] = None
+
         if self.instance is None:
             if not attrs.get('subject'):
                 raise serializers.ValidationError({'subject': 'Subject is required.'})

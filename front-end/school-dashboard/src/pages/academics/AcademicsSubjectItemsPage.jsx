@@ -19,7 +19,7 @@ import { academicsSubApi } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
 import {
-  buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS, itemViewerPath,
+  buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS, itemViewerPath, tabSingularLabel,
 } from './academicsConstants';
 import GradeItemFormModal from './GradeItemFormModal';
 
@@ -39,9 +39,13 @@ export default function AcademicsSubjectItemsPage() {
   const debouncedSearch = useDebounce(search);
   const { page, pageSize, setPage, setPageSize, queryParams, resetPage } = usePagination();
 
+  const hideAcademicYear = Boolean(tab?.hideAcademicYear);
+  const singular = tabSingularLabel(tab);
+
   const { data: yearsData } = useQuery({
     queryKey: ['academic-years'],
     queryFn: () => academicsSubApi.years.list({ page_size: 50 }),
+    enabled: !hideAcademicYear,
   });
 
   const { data: subjectOptions = [] } = useQuery({
@@ -71,7 +75,7 @@ export default function AcademicsSubjectItemsPage() {
     subject: subjectNumericId,
     search: debouncedSearch || undefined,
     grade_level: filterValues.grade_level || undefined,
-    academic_year: filterValues.academic_year || undefined,
+    academic_year: hideAcademicYear ? undefined : (filterValues.academic_year || undefined),
   };
 
   const queryKey = ['academics', 'grade-items', tab.key, subjectNumericId];
@@ -112,72 +116,79 @@ export default function AcademicsSubjectItemsPage() {
     }
   };
 
-  const columns = [
-    {
-      key: 'title',
-      header: 'Title',
-      render: (r) => (
-        <Link
-          to={itemViewerPath(tab, subjectNumericId, r.id)}
-          className="font-semibold text-primary hover:underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {r.title}
-        </Link>
-      ),
-    },
-    {
-      key: 'grade_level',
-      header: 'Grade',
-      render: (r) => `Grade ${r.grade_level}`,
-    },
-    {
-      key: 'academic_year_name',
-      header: 'First Added (Year)',
-      render: (r) => r.academic_year_name || '—',
-    },
-    {
-      key: 'files',
-      header: 'Files',
-      render: (r) => {
-        const count = r.attachment_count ?? (r.attachments || []).length;
-        if (!count) return '—';
-        return (
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-            {count} file{count === 1 ? '' : 's'} · click row to open
-          </span>
-        );
+  const columns = useMemo(() => {
+    const base = [
+      {
+        key: 'title',
+        header: 'Title',
+        render: (r) => (
+          <Link
+            to={itemViewerPath(tab, subjectNumericId, r.id)}
+            className="font-semibold text-primary hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {r.title}
+          </Link>
+        ),
       },
-    },
-    {
-      key: 'created_at',
-      header: 'Uploaded',
-      render: (r) => formatDate(r.created_at),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      className: 'text-right',
-      render: (row) => (
-        <div className="flex justify-end gap-1">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setEditing(row); setModalOpen(true); }}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary"
-          >
-            <FiEdit2 />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setDeleteTarget(row); }}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-          >
-            <FiTrash2 />
-          </button>
-        </div>
-      ),
-    },
-  ];
+      {
+        key: 'grade_level',
+        header: 'Grade',
+        render: (r) => `Grade ${r.grade_level}`,
+      },
+    ];
+    if (!hideAcademicYear) {
+      base.push({
+        key: 'academic_year_name',
+        header: 'First Added (Year)',
+        render: (r) => r.academic_year_name || '—',
+      });
+    }
+    base.push(
+      {
+        key: 'files',
+        header: 'Files',
+        render: (r) => {
+          const count = r.attachment_count ?? (r.attachments || []).length;
+          if (!count) return '—';
+          return (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+              {count} file{count === 1 ? '' : 's'} · click row to open
+            </span>
+          );
+        },
+      },
+      {
+        key: 'created_at',
+        header: 'Uploaded',
+        render: (r) => formatDate(r.created_at),
+      },
+      {
+        key: 'actions',
+        header: 'Actions',
+        className: 'text-right',
+        render: (row) => (
+          <div className="flex justify-end gap-1">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setEditing(row); setModalOpen(true); }}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary"
+            >
+              <FiEdit2 />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setDeleteTarget(row); }}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+            >
+              <FiTrash2 />
+            </button>
+          </div>
+        ),
+      },
+    );
+    return base;
+  }, [hideAcademicYear, subjectNumericId, tab]);
 
   const subjectTitle = subject?.name || 'Subject';
 
@@ -201,9 +212,11 @@ export default function AcademicsSubjectItemsPage() {
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-gray-500">Filter by grade or academic year</p>
+        <p className="text-xs text-gray-500">
+          {hideAcademicYear ? 'Filter by grade' : 'Filter by grade or academic year'}
+        </p>
         <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
-          <FiPlus /> Add {tab.label.slice(0, -1)}
+          <FiPlus /> Add {singular}
         </Button>
       </div>
 
@@ -214,10 +227,14 @@ export default function AcademicsSubjectItemsPage() {
       />
 
       <FilterPanel
-        filters={[
-          { key: 'grade_level', label: 'Grade', options: GRADE_OPTIONS },
-          { key: 'academic_year', label: 'Academic Year', options: yearOptions },
-        ]}
+        filters={
+          hideAcademicYear
+            ? [{ key: 'grade_level', label: 'Grade', options: GRADE_OPTIONS }]
+            : [
+              { key: 'grade_level', label: 'Grade', options: GRADE_OPTIONS },
+              { key: 'academic_year', label: 'Academic Year', options: yearOptions },
+            ]
+        }
         values={filterValues}
         onChange={(key, value) => { setFilterValues((prev) => ({ ...prev, [key]: value })); resetPage(); }}
         onReset={() => { setFilterValues({}); resetPage(); }}
@@ -231,7 +248,7 @@ export default function AcademicsSubjectItemsPage() {
         <EmptyState
           title={`No ${tab.label.toLowerCase()} for ${subjectTitle}`}
           description="Add the first item for this subject."
-          actionLabel={`Add ${tab.label.slice(0, -1)}`}
+          actionLabel={`Add ${singular}`}
           onAction={() => { setEditing(null); setModalOpen(true); }}
         />
       ) : (
@@ -254,7 +271,7 @@ export default function AcademicsSubjectItemsPage() {
       <GradeItemFormModal
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditing(null); }}
-        tabLabel={tab.label}
+        tab={tab}
         subjectLabel={subjectTitle}
         editing={editing}
         yearOptions={yearOptions}

@@ -27,7 +27,7 @@ export default function AcademicsPage() {
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Academics</h2>
         <p className="mt-0.5 text-xs text-gray-500">
-          Choose a subject to view assignments, mid exams, or final exams for that subject only
+          Choose a subject for assignments, mid exams, final exams, or materials
         </p>
       </div>
 

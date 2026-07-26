@@ -2,6 +2,7 @@ export const ACADEMIC_TABS = [
   { key: 'ASSIGNMENT', label: 'Assignments', slug: 'assignments' },
   { key: 'MID_EXAM', label: 'Mid Exams', slug: 'mid-exams' },
   { key: 'FINAL_EXAM', label: 'Final Exams', slug: 'final-exams' },
+  { key: 'MATERIAL', label: 'Materials', slug: 'materials', hideAcademicYear: true },
 ];
 
 export const GRADE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({
@@ -31,7 +32,8 @@ export function buildGradeItemFormData(formValues, itemType, subjectId, files, e
   fd.append('subject', String(subjectId));
   fd.append('title', formValues.title?.trim() || '');
   fd.append('grade_level', String(formValues.grade_level));
-  if (!editing) {
+  const hideYear = itemType === 'MATERIAL';
+  if (!editing && !hideYear) {
     fd.append('academic_year', String(formValues.academic_year));
   }
   if (formValues.description?.trim()) {
@@ -39,4 +41,9 @@ export function buildGradeItemFormData(formValues, itemType, subjectId, files, e
   }
   files.forEach((file) => fd.append('files', file));
   return fd;
+}
+
+export function tabSingularLabel(tab) {
+  if (tab?.key === 'MATERIAL') return 'Material';
+  return tab?.label?.slice(0, -1) || 'Item';
 }

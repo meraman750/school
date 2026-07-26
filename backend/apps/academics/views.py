@@ -340,7 +340,7 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
         valid_types = dict(GradeAcademicItem.ItemType.choices)
         if item_type not in valid_types:
             return Response(
-                {'detail': 'item_type is required (ASSIGNMENT, MID_EXAM, or FINAL_EXAM).'},
+                {'detail': 'item_type is required (ASSIGNMENT, MID_EXAM, FINAL_EXAM, or MATERIAL).'},
                 status=400,
             )
         subjects = Subject.objects.filter(is_deleted=False).annotate(
