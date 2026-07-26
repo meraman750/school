@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi, tokenStorage } from '../services/api';
 import { clearDashboardEntry } from '../utils/dashboardAccess';
 
@@ -7,6 +7,41 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => tokenStorage.getUser());
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const syncSessionFromStorage = () => {
+      const access = tokenStorage.getAccess();
+      if (!access) {
+        setUser(null);
+        return;
+      }
+      setUser(tokenStorage.getUser());
+    };
+
+    const onStorage = (event) => {
+      if (
+        event.key === null
+        || event.key === 'access_token'
+        || event.key === 'refresh_token'
+        || event.key === 'user'
+      ) {
+        syncSessionFromStorage();
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncSessionFromStorage();
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   const login = useCallback(async (email, password) => {
     setLoading(true);

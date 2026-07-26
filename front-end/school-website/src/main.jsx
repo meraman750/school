@@ -4,8 +4,11 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { revokeDashboardSessionOnPublicSite } from './utils/dashboardSession'
 import App from './App'
 import './index.css'
+
+revokeDashboardSessionOnPublicSite()
 
 const queryClient = new QueryClient({
   defaultOptions: {
