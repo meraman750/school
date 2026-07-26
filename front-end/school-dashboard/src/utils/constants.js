@@ -17,6 +17,7 @@ export const MODULES = [
   { key: 'library', label: 'Library', path: '/library', icon: 'bookOpen' },
   { key: 'documents', label: 'Documents', path: '/documents', icon: 'folder' },
   { key: 'reports', label: 'Reports', path: '/reports', icon: 'barChart' },
+  { key: 'activity', label: 'Activity', path: '/activity', icon: 'activity' },
   { key: 'studentFees', label: 'Student Fees', path: '/finance/student-fees', icon: 'users' },
   { key: 'teacherPayroll', label: 'Teacher Payroll', path: '/finance/teacher-payroll', icon: 'briefcase' },
   { key: 'finance', label: 'Finance', path: '/finance', icon: 'dollar' },

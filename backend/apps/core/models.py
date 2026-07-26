@@ -39,3 +39,35 @@ class BaseModel(models.Model):
     def restore(self):
         self.is_deleted = False
         self.save(update_fields=['is_deleted', 'updated_at'])
+
+
+class DashboardActivity(models.Model):
+    """Audit trail of dashboard actions by finance, teachers, and portal users."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='dashboard_activities',
+    )
+    actor_name = models.CharField(max_length=255)
+    actor_role = models.CharField(max_length=32)
+    actor_email = models.EmailField(blank=True)
+    module = models.CharField(max_length=64)
+    action = models.CharField(max_length=32)
+    summary = models.CharField(max_length=512)
+    detail = models.TextField(blank=True)
+    http_method = models.CharField(max_length=16, blank=True)
+    path = models.CharField(max_length=512, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['actor_role', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.actor_name}: {self.summary}'

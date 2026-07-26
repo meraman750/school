@@ -31,6 +31,7 @@ import SettingsPage from '../pages/settings/SettingsPage';
 import FinancePage from '../pages/finance/FinancePage';
 import StudentFeesPage from '../pages/finance/StudentFeesPage';
 import TeacherPayrollPage from '../pages/finance/TeacherPayrollPage';
+import ActivityPage from '../pages/activity/ActivityPage';
 import PortalProfilePage from '../pages/portal/PortalProfilePage';
 
 function ProtectedGuard({ children }) {
@@ -104,6 +105,7 @@ export default function AppRoutes() {
           <Route path="reports" element={<RoleGuard moduleKey="reports"><ReportsPage /></RoleGuard>} />
           <Route path="reports/grade/:gradeLevel/section/:sectionName" element={<RoleGuard moduleKey="reports"><ReportsClassRoute /></RoleGuard>} />
           <Route path="reports/grade/:gradeLevel" element={<RoleGuard moduleKey="reports"><ReportsGradeRoute /></RoleGuard>} />
+          <Route path="activity" element={<RoleGuard moduleKey="activity"><ActivityPage /></RoleGuard>} />
           <Route path="finance/student-fees" element={<RoleGuard moduleKey="studentFees"><StudentFeesPage /></RoleGuard>} />
           <Route path="finance/teacher-payroll" element={<RoleGuard moduleKey="teacherPayroll"><TeacherPayrollPage /></RoleGuard>} />
           <Route path="finance" element={<RoleGuard moduleKey="finance"><FinancePage /></RoleGuard>} />

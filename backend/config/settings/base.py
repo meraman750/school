@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     'apps.documents',
     'apps.reports',
     'apps.settings_app',
+    'apps.finance',
+    'apps.parents',
 ]
 
 MIDDLEWARE = [
@@ -44,6 +46,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.core.middleware.DashboardActivityMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

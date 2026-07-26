@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiGrid, FiUsers, FiUserCheck, FiBook, FiCalendar, FiClock, FiFileText,
   FiDollarSign, FiBookOpen, FiTruck, FiPackage, FiBriefcase, FiMessageSquare,
-  FiFolder, FiBarChart2, FiSettings, FiMenu, FiX, FiLogOut,
+  FiFolder, FiBarChart2, FiSettings, FiMenu, FiX, FiLogOut, FiActivity,
 } from 'react-icons/fi';
 import { APP_NAME, MODULES } from '../utils/constants';
 import { canShowModuleInNav, normalizeRole } from '../utils/roles';
@@ -30,6 +30,7 @@ const ICON_MAP = {
   message: FiMessageSquare,
   folder: FiFolder,
   barChart: FiBarChart2,
+  activity: FiActivity,
   settings: FiSettings,
 };
 

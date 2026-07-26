@@ -49,9 +49,10 @@ const STAFF_MODULE_ACCESS = {
   library: [...ADMIN_ROLES, ...TEACHER_ROLES, ROLES.LIBRARIAN],
   documents: [...ADMIN_ROLES],
   reports: [...ADMIN_ROLES, ...TEACHER_ROLES],
-  studentFees: [...ADMIN_ROLES, ...FINANCE_ROLES],
-  teacherPayroll: [...ADMIN_ROLES, ...FINANCE_ROLES],
-  finance: [...ADMIN_ROLES, ...FINANCE_ROLES],
+  activity: [...ADMIN_ROLES],
+  studentFees: [...FINANCE_ROLES],
+  teacherPayroll: [...FINANCE_ROLES],
+  finance: [...FINANCE_ROLES],
   settings: [...ADMIN_ROLES, ...TEACHER_ROLES, ...FINANCE_ROLES],
 };
 
