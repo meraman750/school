@@ -131,7 +131,11 @@ export const teacherSalaryInfoApi = createResourceService('teachers/salary-info'
 export const teacherSalaryPaymentsApi = createResourceService('teachers/salary-payments');
 export const libraryApi = createResourceService('library/books');
 export const libraryCategoriesApi = createResourceService('library/categories');
-export const documentsApi = createResourceService('documents/documents');
+export const documentsApi = {
+  ...createResourceService('documents/documents'),
+  create: (formData) => api.post('documents/documents/', formData).then((r) => r.data),
+  update: (id, formData) => api.patch(`documents/documents/${id}/`, formData).then((r) => r.data),
+};
 export const settingsApi = createResourceService('settings/school-profile');
 
 export const dashboardApi = {
