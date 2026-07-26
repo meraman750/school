@@ -7,7 +7,7 @@ import {
   FiFolder, FiBarChart2, FiSettings, FiMenu, FiX, FiLogOut,
 } from 'react-icons/fi';
 import { APP_NAME, MODULES } from '../utils/constants';
-import { canAccessModule, normalizeRole } from '../utils/roles';
+import { canShowModuleInNav, normalizeRole } from '../utils/roles';
 import { useAuth } from '../context/AuthContext';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
 import NotificationBell from '../components/ui/NotificationBell';
@@ -34,7 +34,9 @@ const ICON_MAP = {
 };
 
 function getBreadcrumbs(pathname) {
-  const module = MODULES.find((m) => m.path === pathname || (m.path !== '/' && pathname.startsWith(m.path)));
+  const module = [...MODULES]
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((m) => m.path === pathname || (m.path !== '/' && pathname.startsWith(m.path)));
   if (!module || module.path === '/') return [{ label: 'Overview' }];
   return [{ label: 'Overview', path: '/' }, { label: module.label }];
 }
@@ -45,7 +47,7 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const role = normalizeRole(user?.role);
-  const visibleModules = MODULES.filter((m) => canAccessModule(role, m.key));
+  const visibleModules = MODULES.filter((m) => canShowModuleInNav(role, m.key));
 
   const name = user?.full_name || user?.name || user?.email || 'Admin';
 
