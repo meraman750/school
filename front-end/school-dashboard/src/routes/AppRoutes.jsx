@@ -43,8 +43,6 @@ import ExaminationGradePage from '../pages/examination/ExaminationGradePage';
 
 import LibraryPage from '../pages/library/LibraryPage';
 
-import TransportPage from '../pages/transport/TransportPage';
-
 import DocumentsPage from '../pages/documents/DocumentsPage';
 
 import ReportsPage from '../pages/reports/ReportsPage';
@@ -150,8 +148,6 @@ export default function AppRoutes() {
           <Route path="examination/grade/:gradeLevel" element={<RoleGuard moduleKey="examination"><ExaminationGradePage /></RoleGuard>} />
 
           <Route path="library" element={<RoleGuard moduleKey="library"><LibraryPage /></RoleGuard>} />
-
-          <Route path="transport" element={<RoleGuard moduleKey="transport"><TransportPage /></RoleGuard>} />
 
           <Route path="documents" element={<RoleGuard moduleKey="documents"><DocumentsPage /></RoleGuard>} />
 

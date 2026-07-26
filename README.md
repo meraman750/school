@@ -79,7 +79,6 @@ docker-compose up --build
 | Teachers | Profiles, qualifications, leave, performance |
 | Academics | Classes, subjects, exams, grades, timetables |
 | Library | Books, borrowing, fines |
-| Transport | Routes, vehicles, assignments |
 | Documents | File management |
 | Reports | PDF, Excel, CSV exports |
 | Website | Public CMS content |

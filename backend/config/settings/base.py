@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     'apps.academics',
     'apps.library',
     'apps.website',
-    'apps.transport',
     'apps.documents',
     'apps.reports',
     'apps.settings_app',

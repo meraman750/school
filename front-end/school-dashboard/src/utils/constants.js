@@ -15,7 +15,6 @@ export const MODULES = [
   { key: 'timetable', label: 'Time Schedule', path: '/timetable', icon: 'clock' },
   { key: 'examination', label: 'Examination', path: '/examination', icon: 'fileText' },
   { key: 'library', label: 'Library', path: '/library', icon: 'bookOpen' },
-  { key: 'transport', label: 'Transport', path: '/transport', icon: 'truck' },
   { key: 'documents', label: 'Documents', path: '/documents', icon: 'folder' },
   { key: 'reports', label: 'Reports', path: '/reports', icon: 'barChart' },
   { key: 'settings', label: 'Settings', path: '/settings', icon: 'settings' },
