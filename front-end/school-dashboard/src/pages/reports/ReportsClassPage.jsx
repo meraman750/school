@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { FiArrowLeft, FiDownload, FiPlus, FiSave, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronDown, FiChevronUp, FiDownload, FiPlus, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
@@ -23,7 +23,7 @@ import { REPORT_QUARTERS, reportsGradePath } from './reportsConstants';
 function newEntryRow() {
   return {
     rowKey: `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    subjectName: '',
+    subjectId: '',
     score: '',
   };
 }
@@ -46,11 +46,23 @@ function buildEntriesPayload(rows) {
   return rows
     .map((row) => {
       const score = parseScore(row.score);
-      const subjectName = (row.subjectName || '').trim();
-      if (score === null || !subjectName) return null;
-      return { subject_name: subjectName, score, remarks: '' };
+      const subjectId = row.subjectId ? Number(row.subjectId) : null;
+      if (score === null || !subjectId) return null;
+      return { subject: subjectId, score, remarks: '' };
     })
     .filter(Boolean);
+}
+
+function subjectOptionsForRow(allOptions, entries, rowKey) {
+  const current = entries.find((r) => r.rowKey === rowKey)?.subjectId;
+  const usedElsewhere = new Set(
+    entries
+      .filter((r) => r.rowKey !== rowKey && r.subjectId)
+      .map((r) => String(r.subjectId)),
+  );
+  return allOptions.filter(
+    (opt) => opt.value === current || !usedElsewhere.has(opt.value),
+  );
 }
 
 export default function ReportsClassPage({ gradeLevel, sectionName }) {
@@ -64,14 +76,37 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
     queryFn: () => academicsSubApi.years.list({ page_size: 50 }),
   });
 
+  const { data: gradeSubjects = [] } = useQuery({
+    queryKey: ['subjects-by-grade', grade],
+    queryFn: () => studentsApi.getSubjectsByGrade(grade),
+    enabled: grade >= 1 && grade <= 8,
+  });
+
+  const { data: allSubjectsData } = useQuery({
+    queryKey: ['all-subjects'],
+    queryFn: () => academicsSubApi.subjects.list({ page_size: 100 }),
+    enabled: grade >= 1 && grade <= 8 && (!gradeSubjects || gradeSubjects.length === 0),
+  });
+
   const yearOptions = toEthiopianYearOptions(yearsData);
   const defaultYear = yearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR) || yearOptions[0];
 
   const [academicYear, setAcademicYear] = useState('');
   const [quarter, setQuarter] = useState('1');
   const [studentMarks, setStudentMarks] = useState({});
+  const [expandedStudentIds, setExpandedStudentIds] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  const subjectOptions = useMemo(() => {
+    const list = gradeSubjects?.length
+      ? gradeSubjects
+      : (allSubjectsData?.results || allSubjectsData || []);
+    return list.map((s) => ({
+      value: String(s.id),
+      label: s.code ? `${s.name} (${s.code})` : s.name,
+    }));
+  }, [gradeSubjects, allSubjectsData]);
 
   useEffect(() => {
     if (defaultYear?.value && !academicYear) {
@@ -129,7 +164,7 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
       if (report?.entries?.length) {
         next[student.id] = report.entries.map((entry) => ({
           rowKey: `saved-${entry.id}`,
-          subjectName: entry.subject_name || entry.subject?.name || '',
+          subjectId: entry.subject != null ? String(entry.subject) : '',
           score: entry.score != null ? String(entry.score) : '',
         }));
       } else {
@@ -137,6 +172,7 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
       }
     });
     setStudentMarks(next);
+    setExpandedStudentIds(new Set());
   }, [students, reportsByStudent, academicYear, quarter]);
 
   const rankPreview = useMemo(() => {
@@ -165,6 +201,15 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
     return { rankMap, classSize: withAvg.length };
   }, [students, studentMarks, reportsByStudent]);
 
+  const toggleExpanded = useCallback((studentId) => {
+    setExpandedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId);
+      else next.add(studentId);
+      return next;
+    });
+  }, []);
+
   const updateEntry = useCallback((studentId, rowKey, field, value) => {
     setStudentMarks((prev) => {
       const rows = (prev[studentId] || []).map((row) =>
@@ -179,6 +224,7 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
       ...prev,
       [studentId]: [...(prev[studentId] || []), newEntryRow()],
     }));
+    setExpandedStudentIds((prev) => new Set(prev).add(studentId));
   }, []);
 
   const removeEntry = useCallback((studentId, rowKey) => {
@@ -273,7 +319,9 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
               Grade {grade} — Section {section}
             </h1>
-            <p className="text-xs text-gray-500">Add subject marks (0–100), save, then export Excel</p>
+            <p className="text-xs text-gray-500">
+              Click a student to enter marks. Choose subjects from the list (0–100).
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -303,6 +351,12 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
         />
       </Card>
 
+      {!subjectOptions.length && (
+        <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+          No subjects found for this grade. Add subjects under Academics first.
+        </p>
+      )}
+
       {studentsError ? (
         <EmptyState title="Failed to load students" description="Please try again." />
       ) : loading && !students.length ? (
@@ -313,79 +367,97 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
           description="Enroll students with this grade and section first."
         />
       ) : (
-        <ul className="flex flex-col gap-4">
+        <ul className="flex flex-col gap-3">
           {students.map((student) => {
             const entries = studentMarks[student.id] || [newEntryRow()];
             const average = computeAverage(entries);
             const rank = rankPreview.rankMap[student.id];
             const classSize = rankPreview.classSize;
+            const isExpanded = expandedStudentIds.has(student.id);
             return (
               <li key={student.id}>
-                <Card padding className="space-y-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">
+                <Card padding={false} className="overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(student.id)}
+                    className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/50"
+                    aria-expanded={isExpanded}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
                         {getDisplayName(student)}
                       </p>
-                      {student.admission_number && (
-                        <p className="text-xs text-gray-500">{student.admission_number}</p>
-                      )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Badge variant="default">
                         Avg: {average != null ? average : '—'}
                       </Badge>
                       <Badge variant="primary">
                         Rank: {rank ? `${rank}${classSize ? ` / ${classSize}` : ''}` : '—'}
                       </Badge>
+                      {isExpanded ? (
+                        <FiChevronUp className="text-gray-400" aria-hidden />
+                      ) : (
+                        <FiChevronDown className="text-gray-400" aria-hidden />
+                      )}
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {entries.map((row) => (
-                      <div
-                        key={row.rowKey}
-                        className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_120px_auto]"
-                      >
-                        <Input
-                          label={entries.indexOf(row) === 0 ? 'Subject' : undefined}
-                          placeholder="Subject name"
-                          value={row.subjectName}
-                          onChange={(e) =>
-                            updateEntry(student.id, row.rowKey, 'subjectName', e.target.value)}
-                        />
-                        <Input
-                          label={entries.indexOf(row) === 0 ? 'Mark (/100)' : undefined}
-                          type="number"
-                          min={0}
-                          max={100}
-                          step="0.01"
-                          placeholder="0–100"
-                          value={row.score}
-                          onChange={(e) =>
-                            updateEntry(student.id, row.rowKey, 'score', e.target.value)}
-                        />
-                        <div className={`flex items-end ${entries.indexOf(row) === 0 ? 'pb-0.5' : ''}`}>
-                          <button
-                            type="button"
-                            onClick={() => removeEntry(student.id, row.rowKey)}
-                            className="rounded-lg p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-                            aria-label="Remove subject"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => addEntry(student.id)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                  >
-                    <FiPlus /> Add subject
                   </button>
+
+                  {isExpanded && (
+                    <div className="space-y-3 border-t border-gray-100 px-4 pb-4 pt-3 dark:border-gray-800">
+                      {student.admission_number && (
+                        <p className="text-xs text-gray-500">{student.admission_number}</p>
+                      )}
+                      <div className="space-y-2">
+                        {entries.map((row, rowIndex) => (
+                          <div
+                            key={row.rowKey}
+                            className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_120px_auto]"
+                          >
+                            <Select
+                              label={rowIndex === 0 ? 'Subject' : undefined}
+                              value={row.subjectId}
+                              onChange={(e) =>
+                                updateEntry(student.id, row.rowKey, 'subjectId', e.target.value)}
+                              options={subjectOptionsForRow(subjectOptions, entries, row.rowKey)}
+                              placeholder="Choose subject"
+                              disabled={!subjectOptions.length}
+                            />
+                            <Input
+                              label={rowIndex === 0 ? 'Mark (/100)' : undefined}
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.01"
+                              placeholder="0–100"
+                              value={row.score}
+                              onChange={(e) =>
+                                updateEntry(student.id, row.rowKey, 'score', e.target.value)}
+                            />
+                            <div className={`flex items-end ${rowIndex === 0 ? 'pb-0.5' : ''}`}>
+                              <button
+                                type="button"
+                                onClick={() => removeEntry(student.id, row.rowKey)}
+                                className="rounded-lg p-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                aria-label="Remove subject"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => addEntry(student.id)}
+                        disabled={!subjectOptions.length}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <FiPlus /> Add subject
+                      </button>
+                    </div>
+                  )}
                 </Card>
               </li>
             );
