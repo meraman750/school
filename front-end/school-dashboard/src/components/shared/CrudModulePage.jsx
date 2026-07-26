@@ -78,6 +78,8 @@ export default function CrudModulePage({
       let value = row[field.name] ?? '';
       if (field.name === 'subject') value = row.subject ?? row.specialization ?? '';
       if (field.name === 'grade_level' && (value === null || value === undefined)) value = '';
+      if (field.name === 'copies') value = row.total_copies ?? row.copies ?? row.available_copies ?? '';
+      if (field.name === 'category' && row.category != null) value = row.category;
       if (field.type === 'time' && typeof value === 'string' && value.length > 5) {
         value = value.slice(0, 5);
       }
