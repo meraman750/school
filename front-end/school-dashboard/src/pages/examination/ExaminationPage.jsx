@@ -1,19 +1,42 @@
 import { Link } from 'react-router-dom';
 import { FiChevronRight } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
+import EmptyState from '../../components/ui/EmptyState';
 import { EXAM_GRADE_LEVELS } from './examinationConstants';
 import useModulePaths from '../../hooks/useModulePaths';
+import usePortalContext from '../../hooks/usePortalContext';
 
 export default function ExaminationPage() {
   const { examinationGradePath } = useModulePaths();
-  const grades = EXAM_GRADE_LEVELS;
+  const { isPortal, gradeLevels, isLoading, primaryStudent } = usePortalContext();
+  const grades = isPortal ? gradeLevels : EXAM_GRADE_LEVELS;
+
+  if (isPortal && isLoading) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Examination</h2>
+        <p className="text-xs text-gray-500">Loading your class…</p>
+      </div>
+    );
+  }
+
+  if (isPortal && grades.length === 0) {
+    return (
+      <EmptyState
+        title="No class linked"
+        description="Your student profile must include a grade before you can view exam schedules."
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Examination</h2>
         <p className="mt-0.5 text-xs text-gray-500">
-          Open a grade to view its exam schedule (read-only for students)
+          {isPortal && primaryStudent
+            ? `Exam schedule for Grade ${primaryStudent.grade_level} · Section ${primaryStudent.section || '—'}`
+            : 'Open a grade to view and edit its exam schedule'}
         </p>
       </div>
 

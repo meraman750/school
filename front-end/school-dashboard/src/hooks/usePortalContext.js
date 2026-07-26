@@ -28,5 +28,19 @@ export default function usePortalContext() {
     primaryStudent,
     isLoading: isPortal && isLoading,
     isError: isPortal && isError,
+    canAccessClass: (gradeLevel, sectionName) => {
+      if (!isPortal) return true;
+      const grade = Number(gradeLevel);
+      const section = String(sectionName || '').trim().toUpperCase();
+      return students.some(
+        (s) => Number(s.grade_level) === grade
+          && String(s.section || '').trim().toUpperCase() === section,
+      );
+    },
+    canAccessGrade: (gradeLevel) => {
+      if (!isPortal) return true;
+      const grade = Number(gradeLevel);
+      return gradeLevels.includes(grade);
+    },
   };
 }

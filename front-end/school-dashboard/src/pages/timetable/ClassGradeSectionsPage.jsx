@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FiArrowLeft, FiChevronRight } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
@@ -6,6 +6,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import useModulePaths from '../../hooks/useModulePaths';
+import usePortalContext from '../../hooks/usePortalContext';
 import { useAuth } from '../../context/AuthContext';
 import { isTeacherRole, normalizeRole } from '../../utils/roles';
 
@@ -15,18 +16,36 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
   const { user } = useAuth();
   const isTeacher = isTeacherRole(normalizeRole(user?.role));
   const { timetableListPath, timetableSectionPath } = useModulePaths();
+  const { isPortal, canAccessGrade, canAccessClass } = usePortalContext();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timetable', 'grade-sections', grade],
     queryFn: () => academicsSubApi.classes.ensureGradeSections(grade),
-    enabled: grade >= 1 && grade <= 8,
+    enabled: grade >= 1 && grade <= 8 && (!isPortal || canAccessGrade(grade)),
   });
 
-  const sections = data?.sections || [];
+  const sections = (data?.sections || []).filter(
+    (section) => !isPortal || canAccessClass(grade, section.name),
+  );
 
   if (!grade || grade < 1 || grade > 8) {
     return (
       <EmptyState title="Invalid grade" description="Choose a grade from 1 to 8." />
+    );
+  }
+
+  if (isPortal && !canAccessGrade(grade)) {
+    return <Navigate to={timetableListPath('class')} replace />;
+  }
+
+  if (isPortal && !isLoading && sections.length === 0) {
+    return (
+      <EmptyState
+        title="No access to this class"
+        description="You can only view the timetable for your enrolled grade and section."
+        actionLabel="Back to timetable"
+        onAction={() => navigate(timetableListPath('class'))}
+      />
     );
   }
 
@@ -45,7 +64,11 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Class Timetable</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Grade {grade}</h1>
           <p className="text-xs text-gray-500">
-            {isTeacher ? 'View weekly schedule (read-only)' : 'Select a section to view or edit its weekly schedule'}
+            {isPortal
+              ? 'Your section weekly schedule (read-only)'
+              : isTeacher
+                ? 'View weekly schedule (read-only)'
+                : 'Select a section to view or edit its weekly schedule'}
           </p>
         </div>
       </div>
@@ -83,7 +106,7 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
         onClick={() => navigate(timetableListPath('class'))}
         className="text-xs font-semibold text-primary hover:underline"
       >
-        ← Back to all grades
+        ← Back to {isPortal ? 'your class' : 'all grades'}
       </button>
     </div>
   );

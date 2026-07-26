@@ -38,6 +38,23 @@ def portal_may_access_grade(user, grade_level):
     return grade in levels
 
 
+def portal_may_access_class(user, grade_level, section_name):
+    """Portal users may only open their enrolled grade + section."""
+    if get_portal_grade_levels(user) is None:
+        return True
+    try:
+        grade = int(grade_level)
+    except (TypeError, ValueError):
+        return False
+    section_key = str(section_name or '').strip().upper()
+    for student in get_portal_students(user):
+        if not student:
+            continue
+        if student.grade_level == grade and str(student.section or '').strip().upper() == section_key:
+            return True
+    return False
+
+
 def filter_queryset_for_portal(user, queryset, field_name='grade_level'):
     levels = get_portal_grade_levels(user)
     if levels is None:

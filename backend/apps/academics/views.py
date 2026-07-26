@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsStaffMember, IsTeacher, IsStaffMemberOrPortalReadOnly
-from apps.core.portal_scope import get_portal_grade_levels
+from apps.core.portal_scope import get_portal_grade_levels, portal_may_access_class, portal_may_access_grade
 
 from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
@@ -82,6 +82,8 @@ class SchoolClassViewSet(BaseModelViewSet):
             return Response({'detail': 'Invalid grade_level.'}, status=400)
         if grade_level < 1 or grade_level > 8:
             return Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+        if not portal_may_access_grade(request.user, grade_level):
+            return Response({'detail': 'You may only view your own class timetable.'}, status=403)
 
         academic_year = AcademicYear.objects.filter(is_current=True).first()
         if not academic_year:
@@ -183,6 +185,10 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
     filterset_fields = ['grade_level', 'subject', 'exam_date']
     ordering_fields = ['exam_date', 'start_time', 'schedule_slot_index']
 
+    def get_queryset(self):
+        from apps.core.portal_scope import filter_queryset_for_portal
+        return filter_queryset_for_portal(self.request.user, super().get_queryset())
+
     def _parse_grade_level(self, request):
         grade_level = request.query_params.get('grade_level')
         if grade_level is None and hasattr(request, 'data'):
@@ -202,6 +208,8 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
         grade_level, err = self._parse_grade_level(request)
         if err:
             return err
+        if not portal_may_access_grade(request.user, grade_level):
+            return Response({'detail': 'You may only view your own class exam schedule.'}, status=403)
         user = request.user
         if request.method == 'GET':
             plan, _ = GradeExamSchedulePlan.objects.get_or_create(
@@ -424,6 +432,18 @@ class TimetableViewSet(BaseModelViewSet):
         section_id = request.query_params.get('section')
         if not section_id:
             return Response({'detail': 'section query parameter is required.'}, status=400)
+        try:
+            section = Section.objects.select_related('school_class').get(
+                pk=section_id, is_deleted=False,
+            )
+        except Section.DoesNotExist:
+            return Response({'detail': 'Section not found.'}, status=404)
+        if section.school_class and not portal_may_access_class(
+            request.user,
+            section.school_class.grade_level,
+            section.name,
+        ):
+            return Response({'detail': 'You may only view your own class timetable.'}, status=403)
         rows = self.get_queryset().filter(section_id=section_id).order_by('day_of_week', 'period_number')
         return Response(TimetableSerializer(rows, many=True).data)
 

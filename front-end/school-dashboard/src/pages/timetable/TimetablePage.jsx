@@ -9,6 +9,7 @@ import { academicsSubApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { isReadOnlyModule, isTeacherRole, normalizeRole } from '../../utils/roles';
 import useModulePaths from '../../hooks/useModulePaths';
+import usePortalContext from '../../hooks/usePortalContext';
 import {
   GRADE_LEVELS,
 } from './timetableConstants';
@@ -78,17 +79,33 @@ function AnnualYearListTab() {
 function ClassGradeListTab() {
   const { user } = useAuth();
   const { timetableGradePath } = useModulePaths();
+  const { isPortal, gradeLevels, isLoading, primaryStudent } = usePortalContext();
   const isTeacher = isTeacherRole(normalizeRole(user?.role));
-  const grades = GRADE_LEVELS;
+  const grades = isPortal ? gradeLevels : GRADE_LEVELS;
+
+  if (isPortal && isLoading) {
+    return <p className="text-xs text-gray-500">Loading your class…</p>;
+  }
+
+  if (isPortal && grades.length === 0) {
+    return (
+      <EmptyState
+        title="No class linked"
+        description="Your profile must include a grade to open the class timetable."
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">Class Timetable — Grades</h3>
         <p className="text-xs text-gray-500">
-          {isTeacher
-            ? 'View weekly schedules for all grades (read-only)'
-            : 'Choose a grade, then section A, B, or C to view the weekly schedule'}
+          {isPortal && primaryStudent
+            ? `Your class: Grade ${primaryStudent.grade_level} · Section ${primaryStudent.section || '—'}`
+            : isTeacher
+              ? 'View weekly schedules for all grades (read-only)'
+              : 'Choose a grade, then section A, B, or C to view the weekly schedule'}
         </p>
       </div>
       <ul className="flex flex-col gap-3">
