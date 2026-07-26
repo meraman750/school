@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsStaffMember, IsTeacher, IsStaffMemberOrPortalReadOnly
-from apps.core.portal_scope import get_portal_grade_levels, portal_may_access_class, portal_may_access_grade
+from apps.core.portal_scope import portal_may_access_class, portal_may_access_grade
 
 from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
@@ -590,11 +590,9 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
                 filter=item_filter,
             ),
         ).order_by('name')
-        portal = get_portal_grade_levels(request.user) is not None
-        payload = [{
+        return Response([{
             'id': subject.id,
             'name': subject.name,
             'code': subject.code,
             'item_count': subject.item_count,
-        } for subject in subjects if subject.item_count > 0 or portal]
-        return Response(payload)
+        } for subject in subjects])
