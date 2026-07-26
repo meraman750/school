@@ -24,7 +24,7 @@ export default function LibraryPage() {
   return (
     <CrudModulePage
       title="Library"
-      description="Manage books, borrowing records, and inventory"
+      description="Manage books and borrowing records"
       queryKey={['library']}
       api={libraryApi}
       columns={columns}
