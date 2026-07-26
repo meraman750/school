@@ -101,6 +101,8 @@ Full checklist: **[DEPLOY.md](./DEPLOY.md)**
 
 **No credit card / other hosts:** **[DEPLOY-ALTERNATIVES.md](./DEPLOY-ALTERNATIVES.md)**
 
+**Render (API + static sites):** **[DEPLOY-RENDER.md](./DEPLOY-RENDER.md)**
+
 ## License
 
 Proprietary - Biruk Academy Primary School

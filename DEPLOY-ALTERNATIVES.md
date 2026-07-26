@@ -7,14 +7,15 @@ Use this doc if **Oracle Cloud is not an option** (credit card, region limits, e
 | **[A. Cloudflare Tunnel + Docker (PC)](./DEPLOY-CLOUDFLARE-TUNNEL.md)** | No (Cloudflare free) | Only while PC + Docker run | Yes | Demo, pilot, small school on one computer |
 | **[B. Cloudflare Pages + Neon + PythonAnywhere](./DEPLOY-SPLIT-NO-CARD.md)** | No | Yes (API on PA free tier) | No (manual setup) | Light production without Docker |
 | **C. Local / school LAN only** | No | On LAN only | Optional | Classroom, office testing |
-| **D. Render / Railway / Fly.io** | Usually **yes** | Yes | Partial | Skip if you refuse any card |
-| **E. Oracle / GCP / AWS free VM** | Yes (verify) | Yes | Yes | See [DEPLOY-ORACLE.md](./DEPLOY-ORACLE.md) |
+| **D. Render (recommended paid-ish free tier)** | Usually **yes** | Yes (API may sleep) | API + static sites | **[DEPLOY-RENDER.md](./DEPLOY-RENDER.md)** |
+| **E. Railway / Fly.io** | Usually **yes** | Yes | Partial | See Render doc for comparison |
+| **F. Oracle / GCP / AWS free VM** | Yes (verify) | Yes | Full Docker | [DEPLOY-ORACLE.md](./DEPLOY-ORACLE.md) |
 
 ---
 
 ## Quick pick
 
-- **“Show the school online this week, no card”** → **Option A** ([DEPLOY-CLOUDFLARE-TUNNEL.md](./DEPLOY-CLOUDFLARE-TUNNEL.md))
+- **“Simple cloud, GitHub deploy”** → **[DEPLOY-RENDER.md](./DEPLOY-RENDER.md)** (API on Render + Neon + static frontends)
 - **“API always up, no Docker, no card”** → **Option B** ([DEPLOY-SPLIT-NO-CARD.md](./DEPLOY-SPLIT-NO-CARD.md))
 - **“Only inside the school building”** → **Option C** below
 

@@ -1,0 +1,73 @@
+# Render Blueprint — set secret env vars in dashboard after sync.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: biruk-api
+    runtime: python
+    region: frankfurt
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    releaseCommand: python manage.py migrate --noinput
+    healthCheckPath: /admin/login/
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: DEBUG
+        value: "False"
+      - key: USE_SQLITE
+        value: "false"
+      - key: DB_SSLMODE
+        value: require
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DB_HOST
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+  - type: web
+    name: biruk-website
+    runtime: static
+    rootDir: front-end/school-website
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+
+  - type: web
+    name: biruk-dashboard
+    runtime: static
+    rootDir: front-end/school-dashboard
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_SHOW_DEMO
+        value: "false"
+      - key: VITE_BASE
+        value: /
+      - key: VITE_ROUTER_BASENAME
+        value: /
+      - key: VITE_PUBLIC_SITE_URL
+        sync: false
