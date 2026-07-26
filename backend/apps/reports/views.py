@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.permissions import IsStaffMember
+from apps.core.teacher_scope import teacher_can_access_class
 from apps.students.models import Student, StudentGradeReport
 
 
@@ -42,6 +43,9 @@ class ClassStudentMarksReportView(APIView):
             quarter = int(quarter)
         except ValueError:
             return Response({'detail': 'grade_level, academic_year, and quarter must be numbers.'}, status=400)
+
+        if not teacher_can_access_class(request.user, grade_level, section):
+            return Response({'detail': 'You are not assigned to this class.'}, status=403)
 
         students = Student.objects.filter(
             grade_level=grade_level,

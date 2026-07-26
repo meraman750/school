@@ -111,6 +111,9 @@ export default function CrudModulePage({
     }
   };
 
+  const results = data?.results ?? [];
+  const totalCount = data?.count ?? results.length;
+
   const tableColumns = [
     ...columns,
     ...(allowEdit || allowDelete
@@ -149,9 +152,11 @@ export default function CrudModulePage({
               <FiDownload /> Export
             </Button>
           )}
+          {createLabel && (
           <Button size="sm" onClick={openCreate}>
             <FiPlus /> {createLabel}
           </Button>
+          )}
         </div>
       </div>
 
@@ -170,15 +175,15 @@ export default function CrudModulePage({
         <TableSkeleton />
       ) : isError ? (
         <EmptyState title="Failed to load data" description="Please check your connection and try again." />
-      ) : data?.results?.length === 0 ? (
-        <EmptyState title={emptyTitle} description={emptyDescription} actionLabel={createLabel} onAction={openCreate} />
+      ) : results.length === 0 ? (
+        <EmptyState title={emptyTitle} description={emptyDescription} actionLabel={createLabel} onAction={createLabel ? openCreate : undefined} />
       ) : (
         <>
-          <Table columns={tableColumns} data={data?.results || []} />
+          <Table columns={tableColumns} data={results} />
           <Pagination
             page={page}
             pageSize={pageSize}
-            total={data?.count || 0}
+            total={totalCount}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
           />

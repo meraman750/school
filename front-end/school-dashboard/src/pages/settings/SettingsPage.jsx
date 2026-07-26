@@ -1,17 +1,26 @@
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
 import Card, { CardHeader } from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import { TableSkeleton } from '../../components/ui/Skeleton';
-import { settingsApi } from '../../services/api';
+import { authApi, settingsApi, teachersApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { canEditSchoolSettings, isFinanceRole, isTeacherRole, normalizeRole } from '../../utils/roles';
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role);
   const queryClient = useQueryClient();
+  const [phone, setPhone] = useState(user?.phone || '');
+
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: () => settingsApi.list(),
+    enabled: canEditSchoolSettings(role),
   });
 
   const { register, handleSubmit } = useForm();
@@ -24,36 +33,76 @@ export default function SettingsPage() {
     onError: () => toast.error('Failed to save settings'),
   });
 
+  const profileMutation = useMutation({
+    mutationFn: (payload) => authApi.updateMe(payload),
+    onSuccess: () => toast.success('Profile updated'),
+    onError: () => toast.error('Failed to update profile'),
+  });
+
+  const { data: meTeacher } = useQuery({
+    queryKey: ['teacher-me'],
+    queryFn: () => teachersApi.me(),
+    enabled: isTeacherRole(role),
+  });
+
   const settingsData = settings?.results?.[0] || settings || {};
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h2>
-        <p className="mt-0.5 text-xs text-gray-500">Manage school configuration</p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          {canEditSchoolSettings(role) ? 'School and account settings' : 'Your account settings'}
+        </p>
       </div>
 
       <Card>
-        <CardHeader title="School Settings" subtitle="General school configuration" />
-        {isLoading ? (
-          <TableSkeleton rows={3} />
-        ) : (
-          <form
-            onSubmit={handleSubmit((data) => updateMutation.mutate(data))}
-            className="grid grid-cols-1 gap-4 md:grid-cols-2"
-          >
-            <Input label="School Name" defaultValue={settingsData.school_name || 'Biruk Academy'} {...register('school_name')} />
-            <Input label="School Email" type="email" defaultValue={settingsData.email || ''} {...register('email')} />
-            <Input label="Phone" defaultValue={settingsData.phone || ''} {...register('phone')} />
-            <Input label="Address" defaultValue={settingsData.address || ''} {...register('address')} />
-            <Input label="Academic Year" defaultValue={settingsData.academic_year || ''} {...register('academic_year')} />
-            <Input label="Currency" defaultValue={settingsData.currency || 'ETB'} {...register('currency')} />
-            <div className="md:col-span-2">
-              <Button type="submit" loading={updateMutation.isPending}>Save Settings</Button>
-            </div>
-          </form>
-        )}
+        <CardHeader title="My account" subtitle="Contact details" />
+        <div className="grid max-w-md grid-cols-1 gap-4">
+          <Input label="Name" value={user?.full_name || user?.email || ''} disabled />
+          <Input label="Email" value={user?.email || ''} disabled />
+          <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Button onClick={() => profileMutation.mutate({ phone: phone.trim() })} loading={profileMutation.isPending}>
+            Save profile
+          </Button>
+          {isTeacherRole(role) && meTeacher?.id && (
+            <Link
+              to={`/teachers/${meTeacher.id}`}
+              className="inline-flex text-xs font-semibold text-primary hover:underline"
+            >
+              View teacher profile
+            </Link>
+          )}
+        </div>
       </Card>
+
+      {canEditSchoolSettings(role) && (
+        <Card>
+          <CardHeader title="School settings" subtitle="General school configuration" />
+          {isLoading ? (
+            <TableSkeleton rows={3} />
+          ) : (
+            <form
+              onSubmit={handleSubmit((data) => updateMutation.mutate(data))}
+              className="grid grid-cols-1 gap-4 md:grid-cols-2"
+            >
+              <Input label="School Name" defaultValue={settingsData.school_name || 'Biruk Academy'} {...register('school_name')} />
+              <Input label="School Email" type="email" defaultValue={settingsData.email || ''} {...register('email')} />
+              <Input label="Phone" defaultValue={settingsData.phone || ''} {...register('phone')} />
+              <Input label="Address" defaultValue={settingsData.address || ''} {...register('address')} />
+              <Input label="Academic Year" defaultValue={settingsData.academic_year || ''} {...register('academic_year')} />
+              <Input label="Currency" defaultValue={settingsData.currency || 'ETB'} {...register('currency')} />
+              <div className="md:col-span-2">
+                <Button type="submit" loading={updateMutation.isPending}>Save school settings</Button>
+              </div>
+            </form>
+          )}
+        </Card>
+      )}
+
+      {isFinanceRole(role) && !canEditSchoolSettings(role) && (
+        <p className="text-xs text-gray-500">Currency and school-wide settings are managed by administrators.</p>
+      )}
     </div>
   );
 }

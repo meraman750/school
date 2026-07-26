@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     FeeStructureViewSet, InvoiceViewSet, PaymentViewSet,
     ReceiptViewSet, ScholarshipViewSet, DiscountViewSet, FinancialReportsView,
+    FinanceStudentMonthlyComplianceView, FinanceTeacherPayrollComplianceView,
 )
 
 router = DefaultRouter()
@@ -16,5 +17,7 @@ router.register(r'discounts', DiscountViewSet, basename='discount')
 
 urlpatterns = [
     path('reports/', FinancialReportsView.as_view(), name='financial-reports'),
+    path('compliance/students/', FinanceStudentMonthlyComplianceView.as_view(), name='finance-student-compliance'),
+    path('compliance/teachers/', FinanceTeacherPayrollComplianceView.as_view(), name='finance-teacher-compliance'),
     path('', include(router.urls)),
 ]

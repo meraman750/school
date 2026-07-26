@@ -22,6 +22,8 @@ import Textarea from '../../components/ui/Textarea';
 import Badge from '../../components/ui/Badge';
 import Table from '../../components/ui/Table';
 import { formatDate, formatCurrency, getInitials } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
+import { canManageTeacherSalary, isAdminRole, isTeacherRole, normalizeRole } from '../../utils/roles';
 
 const GENDERS = [
   { value: 'M', label: 'Male' },
@@ -573,6 +575,8 @@ function SalaryPaymentModal({ isOpen, onClose, teacher, payment, onSuccess }) {
 
 export default function TeacherDetailPage() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');
   const [personalModal, setPersonalModal] = useState(false);
@@ -587,6 +591,8 @@ export default function TeacherDetailPage() {
   const [salaryInfoModal, setSalaryInfoModal] = useState(false);
   const [paymentModal, setPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [assignGrade, setAssignGrade] = useState('5');
+  const [assignSection, setAssignSection] = useState('A');
 
   const { data: teacher, isLoading, isError } = useQuery({
     queryKey: ['teacher-profile', id],
@@ -594,6 +600,19 @@ export default function TeacherDetailPage() {
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['teacher-profile', id] });
+
+  const assignClassMutation = useMutation({
+    mutationFn: () => teachersApi.assignClassTeacher(id, {
+      grade_level: Number(assignGrade),
+      section: assignSection,
+    }),
+    onSuccess: (res) => {
+      toast.success(res?.detail || 'Class assigned');
+      refresh();
+      queryClient.invalidateQueries({ queryKey: ['teacher-assigned-sections'] });
+    },
+    onError: (err) => toast.error(err?.response?.data?.detail || 'Could not assign class'),
+  });
 
   if (isLoading) {
     return (
@@ -615,6 +634,11 @@ export default function TeacherDetailPage() {
   }
 
   const salary = teacher.salary_info;
+  const visibleTabs = TABS.filter((tab) => {
+    if (tab.id === 'salary' && !canManageTeacherSalary(role)) return false;
+    if (isTeacherRole(role) && (tab.id === 'salary' || tab.id === 'performance')) return false;
+    return true;
+  });
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -643,7 +667,7 @@ export default function TeacherDetailPage() {
             </div>
           </div>
         </div>
-        {salary?.net_monthly_salary != null && (
+        {canManageTeacherSalary(role) && salary?.net_monthly_salary != null && (
           <Card padding className="min-w-[180px] text-center">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Monthly Net Salary</p>
             <p className="text-2xl font-black text-primary">{formatCurrency(salary.net_monthly_salary)}</p>
@@ -652,7 +676,7 @@ export default function TeacherDetailPage() {
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-gray-100 pb-1 dark:border-gray-800">
-        {TABS.map(({ id: tabId, label, icon: Icon }) => (
+        {visibleTabs.map(({ id: tabId, label, icon: Icon }) => (
           <button
             key={tabId}
             type="button"
@@ -709,6 +733,32 @@ export default function TeacherDetailPage() {
               </div>
             ) : (
               <p className="text-sm text-gray-500">Not assigned as class teacher.</p>
+            )}
+            {isAdminRole(role) && (
+              <div className="mt-4 space-y-3 border-t border-gray-100 pt-4 dark:border-gray-800">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Assign class teacher</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Select
+                    label="Grade"
+                    value={assignGrade}
+                    onChange={(e) => setAssignGrade(e.target.value)}
+                    options={[1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({ value: String(g), label: `Grade ${g}` }))}
+                  />
+                  <Select
+                    label="Section"
+                    value={assignSection}
+                    onChange={(e) => setAssignSection(e.target.value)}
+                    options={['A', 'B', 'C'].map((s) => ({ value: s, label: `Section ${s}` }))}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => assignClassMutation.mutate()}
+                  loading={assignClassMutation.isPending}
+                >
+                  Assign as class teacher
+                </Button>
+              </div>
             )}
           </Card>
 

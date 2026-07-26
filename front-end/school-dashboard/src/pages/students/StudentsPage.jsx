@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import CrudModulePage from '../../components/shared/CrudModulePage';
 import { studentsApi } from '../../services/api';
 import { formatDate, getDisplayName } from '../../utils/formatters';
+import { isAdminRole, isFinanceRole, normalizeRole } from '../../utils/roles';
+import { useAuth } from '../../context/AuthContext';
 
 const GENDER_OPTIONS = [
   { value: 'M', label: 'Male' },
@@ -72,11 +74,18 @@ function preparePayload(data, editing) {
 
 export default function StudentsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role);
+  const canCreate = isAdminRole(role);
 
   return (
     <CrudModulePage
-      title="Students"
-      description="Manage student profiles, enrollment, and academic records"
+      title={isFinanceRole(role) ? 'Students (billing)' : 'Students'}
+      description={
+        isFinanceRole(role)
+          ? 'View student names and classes for fee tracking'
+          : 'Manage student profiles, enrollment, and academic records'
+      }
       queryKey={['students']}
       api={studentsApi}
       allowDelete={false}
@@ -100,7 +109,7 @@ export default function StudentsPage() {
         { key: 'gender', label: 'Gender', options: GENDER_OPTIONS },
       ]}
       searchPlaceholder="Search by name..."
-      createLabel="Add Student"
+      createLabel={canCreate ? 'Add Student' : null}
       getDefaultValues={() => ({
         first_name: '',
         last_name: '',

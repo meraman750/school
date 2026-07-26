@@ -1,7 +1,11 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import CrudModulePage from '../../components/shared/CrudModulePage';
 import { teachersApi } from '../../services/api';
 import { formatDate, getDisplayName } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
+import { isTeacherRole, normalizeRole } from '../../utils/roles';
 
 const GENDER_OPTIONS = [
   { value: 'M', label: 'Male' },
@@ -64,6 +68,24 @@ function preparePayload(data) {
 
 export default function TeachersPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role);
+
+  const { data: meTeacher } = useQuery({
+    queryKey: ['teacher-me'],
+    queryFn: () => teachersApi.me(),
+    enabled: isTeacherRole(role),
+  });
+
+  useEffect(() => {
+    if (isTeacherRole(role) && meTeacher?.id) {
+      navigate(`/teachers/${meTeacher.id}`, { replace: true });
+    }
+  }, [role, meTeacher, navigate]);
+
+  if (isTeacherRole(role)) {
+    return null;
+  }
 
   return (
     <CrudModulePage

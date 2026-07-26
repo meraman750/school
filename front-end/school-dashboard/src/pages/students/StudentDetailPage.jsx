@@ -23,6 +23,13 @@ import Badge from '../../components/ui/Badge';
 import Table from '../../components/ui/Table';
 import { formatDate, getDisplayName, getInitials } from '../../utils/formatters';
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
+import { useAuth } from '../../context/AuthContext';
+import {
+  canEditStudentAcademic,
+  canEditStudentDemographics,
+  isStudentBillingView,
+  normalizeRole,
+} from '../../utils/roles';
 
 const QUARTERS = [
   { value: '1', label: 'Quarter 1' },
@@ -110,9 +117,11 @@ function EditableCard({ title, subtitle, onEdit, children }) {
     <Card>
       <div className="mb-3 flex items-start justify-between gap-2">
         <CardHeader title={title} subtitle={subtitle} />
-        <Button type="button" variant="ghost" size="sm" onClick={onEdit}>
-          <FiEdit2 /> Edit
-        </Button>
+        {onEdit && (
+          <Button type="button" variant="ghost" size="sm" onClick={onEdit}>
+            <FiEdit2 /> Edit
+          </Button>
+        )}
       </div>
       {children}
     </Card>
@@ -901,6 +910,11 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
 export default function StudentDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role);
+  const billingOnly = isStudentBillingView(role);
+  const canEditDemographics = canEditStudentDemographics(role);
+  const canEditAcademic = canEditStudentAcademic(role);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [personalModal, setPersonalModal] = useState(false);
@@ -939,13 +953,15 @@ export default function StudentDetailPage() {
       subjects: student.subjects || [],
     }] : []);
 
-  const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'history', label: 'Enrollment History' },
-    { key: 'subjects', label: 'Subjects' },
-    { key: 'reports', label: 'Grade Reports' },
-    { key: 'notes', label: 'Notes' },
-  ];
+  const tabs = billingOnly
+    ? [{ key: 'overview', label: 'Billing' }]
+    : [
+      { key: 'overview', label: 'Overview' },
+      { key: 'history', label: 'Enrollment History' },
+      { key: 'subjects', label: 'Subjects' },
+      { key: 'reports', label: 'Grade Reports' },
+      { key: 'notes', label: 'Notes' },
+    ];
 
   return (
     <div className="space-y-6">
@@ -986,9 +1002,11 @@ export default function StudentDetailPage() {
             </span>
           </div>
         </div>
-        <Button size="sm" onClick={() => setReportModalOpen(true)}>
-          <FiPlus /> Add Grade Report
-        </Button>
+        {!billingOnly && canEditAcademic && (
+          <Button size="sm" onClick={() => setReportModalOpen(true)}>
+            <FiPlus /> Add Grade Report
+          </Button>
+        )}
       </motion.div>
 
       <div className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
@@ -1008,9 +1026,24 @@ export default function StudentDetailPage() {
         ))}
       </div>
 
-      {activeTab === 'overview' && (
+      {activeTab === 'overview' && billingOnly && (
+        <Card padding>
+          <CardHeader title="Billing profile" subtitle="Name, ID, and class for fee tracking" />
+          <DetailRow label="Full Name" value={getDisplayName(student)} />
+          <DetailRow label="Student ID" value={student.admission_number} />
+          <DetailRow label="Grade" value={student.grade_level ? `Grade ${student.grade_level}` : '—'} />
+          <DetailRow label="Section" value={student.section ? `Section ${student.section}` : '—'} />
+          <DetailRow label="Status" value={student.status === 'ACTIVE' ? 'Active' : 'Inactive'} />
+        </Card>
+      )}
+
+      {activeTab === 'overview' && !billingOnly && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <EditableCard title="Personal Information" subtitle="Basic student details" onEdit={() => setPersonalModal(true)}>
+          <EditableCard
+            title="Personal Information"
+            subtitle="Basic student details"
+            onEdit={canEditDemographics ? () => setPersonalModal(true) : undefined}
+          >
             <DetailRow label="Full Name" value={getDisplayName(student)} />
             <DetailRow label="Date of Birth" value={formatDate(student.date_of_birth)} />
             <DetailRow label="Gender" value={student.gender === 'M' ? 'Male' : student.gender === 'F' ? 'Female' : '—'} />
@@ -1019,7 +1052,11 @@ export default function StudentDetailPage() {
             <DetailRow label="Phone" value={student.phone} />
           </EditableCard>
 
-          <EditableCard title="Academic Information" subtitle="Synced from current enrollment" onEdit={() => setAcademicModal(true)}>
+          <EditableCard
+            title="Academic Information"
+            subtitle="Synced from current enrollment"
+            onEdit={canEditDemographics ? () => setAcademicModal(true) : undefined}
+          >
             <DetailRow label="Academic Year" value={student.current_enrollment?.academic_year_name || '—'} />
             <DetailRow label="Grade Level" value={student.grade_level ? `Grade ${student.grade_level}` : '—'} />
             <DetailRow label="Section" value={student.section ? `Section ${student.section}` : '—'} />
@@ -1029,7 +1066,11 @@ export default function StudentDetailPage() {
             <DetailRow label="Years Enrolled" value={student.enrollment_records?.length || '—'} />
           </EditableCard>
 
-          <EditableCard title="Address" subtitle="Location details" onEdit={() => setAddressModal(true)}>
+          <EditableCard
+            title="Address"
+            subtitle="Location details"
+            onEdit={canEditDemographics ? () => setAddressModal(true) : undefined}
+          >
             <DetailRow label="City" value={student.city} />
             <DetailRow label="Region" value={student.region} />
             <DetailRow label="Address" value={student.address} />
@@ -1038,14 +1079,20 @@ export default function StudentDetailPage() {
           <Card>
             <div className="mb-3 flex items-start justify-between gap-2">
               <CardHeader title="General Notes" subtitle="Internal remarks about this student" />
+              {canEditDemographics && (
               <Button type="button" variant="ghost" size="sm" onClick={() => setAcademicModal(true)}>
                 <FiEdit2 /> Edit
               </Button>
+              )}
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">{student.notes || 'No general notes recorded.'}</p>
           </Card>
 
-          <EditableCard title="Guardian Information" subtitle="Parent and guardian contacts" onEdit={() => { setEditingGuardian(null); setGuardianModal(true); }}>
+          <EditableCard
+            title="Guardian Information"
+            subtitle="Parent and guardian contacts"
+            onEdit={canEditDemographics ? () => { setEditingGuardian(null); setGuardianModal(true); } : undefined}
+          >
             {student.guardians?.length ? student.guardians.map((g) => (
               <div key={g.id} className="mb-3 rounded-xl border border-gray-100 p-3 last:mb-0 dark:border-gray-800">
                 <div className="flex items-start justify-between gap-2">
@@ -1055,15 +1102,21 @@ export default function StudentDetailPage() {
                     <p className="mt-1 flex items-center gap-1 text-sm text-gray-600"><FiPhone className="text-primary" /> {g.phone}</p>
                     {g.occupation && <p className="text-xs text-gray-500">{g.occupation}</p>}
                   </div>
+                  {canEditDemographics && (
                   <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingGuardian(g); setGuardianModal(true); }}>
                     <FiEdit2 />
                   </Button>
+                  )}
                 </div>
               </div>
             )) : <p className="text-sm text-gray-500">No guardians on record.</p>}
           </EditableCard>
 
-          <EditableCard title="Medical Information" subtitle="Health and medical issues" onEdit={() => setMedicalModal(true)}>
+          <EditableCard
+            title="Medical Information"
+            subtitle="Health and medical issues"
+            onEdit={canEditDemographics ? () => setMedicalModal(true) : undefined}
+          >
             {student.medical_info ? (
               <>
                 <DetailRow label="Allergies" value={student.medical_info.allergies} />
@@ -1085,9 +1138,11 @@ export default function StudentDetailPage() {
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">Enrollment History</h3>
               <p className="text-xs text-gray-500">All academic years this student has attended</p>
             </div>
+            {canEditDemographics && (
             <Button size="sm" variant="outline" onClick={() => setEnrollmentModal(true)}>
               <FiPlus /> Add Year
             </Button>
+            )}
           </div>
 
           {student.enrollment_records?.length ? (
@@ -1107,9 +1162,11 @@ export default function StudentDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {rec.is_current && <Badge variant="success">Current</Badge>}
+                    {canEditDemographics && (
                     <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingEnrollment(rec); setEnrollmentEditModal(true); }}>
                       <FiEdit2 /> Edit
                     </Button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -1118,8 +1175,8 @@ export default function StudentDetailPage() {
             <EmptyState
               title="No enrollment history yet"
               description="Add a year enrollment record when the student advances to a new grade."
-              actionLabel="Add Year Enrollment"
-              onAction={() => setEnrollmentModal(true)}
+              actionLabel={canEditDemographics ? 'Add Year Enrollment' : undefined}
+              onAction={canEditDemographics ? () => setEnrollmentModal(true) : undefined}
             />
           )}
         </div>
@@ -1129,9 +1186,11 @@ export default function StudentDetailPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500">Subjects by academic year and grade — historical records are preserved.</p>
+            {canEditDemographics && (
             <Button size="sm" variant="outline" onClick={() => setEnrollmentModal(true)}>
               <FiPlus /> Add Enrollment & Subjects
             </Button>
+            )}
           </div>
           {subjectHistory.length ? subjectHistory.map((entry, idx) => (
             <Card key={`${entry.academic_year_id}-${entry.grade_level}-${idx}`}>
@@ -1140,7 +1199,7 @@ export default function StudentDetailPage() {
                   title={`${entry.academic_year_name} · Grade ${entry.grade_level}${entry.section ? ` · Section ${entry.section}` : ''}`}
                   subtitle={entry.is_current ? 'Current enrollment' : 'Past enrollment'}
                 />
-                {entry.enrollment_id && (
+                {entry.enrollment_id && canEditDemographics && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -1182,9 +1241,11 @@ export default function StudentDetailPage() {
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">Grade Reports</h3>
               <p className="text-xs text-gray-500">Quarterly performance preserved for every year and grade</p>
             </div>
+            {canEditAcademic && (
             <Button size="sm" variant="outline" onClick={() => setReportModalOpen(true)}>
               <FiFileText /> New Report
             </Button>
+            )}
           </div>
 
           {student.grade_reports?.length ? (
@@ -1238,8 +1299,8 @@ export default function StudentDetailPage() {
             <EmptyState
               title="No grade reports yet"
               description="Add a quarterly grade report for this student."
-              actionLabel="Add Grade Report"
-              onAction={() => setReportModalOpen(true)}
+              actionLabel={canEditAcademic ? 'Add Grade Report' : undefined}
+              onAction={canEditAcademic ? () => setReportModalOpen(true) : undefined}
             />
           )}
         </div>
@@ -1252,9 +1313,11 @@ export default function StudentDetailPage() {
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">Student Notes</h3>
               <p className="text-xs text-gray-500">Achievements, failures, losses, and other milestones</p>
             </div>
+            {canEditAcademic && (
             <Button size="sm" onClick={() => { setEditingNote(null); setNoteModal(true); }}>
               <FiPlus /> Add Note
             </Button>
+            )}
           </div>
 
           {student.student_notes?.length ? (
@@ -1276,6 +1339,7 @@ export default function StudentDetailPage() {
                         <p className="text-xs text-gray-500">{formatDate(note.event_date)}</p>
                       )}
                     </div>
+                    {canEditAcademic && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -1284,6 +1348,7 @@ export default function StudentDetailPage() {
                     >
                       <FiEdit2 />
                     </Button>
+                    )}
                   </div>
                   <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{note.content}</p>
                 </Card>
@@ -1293,8 +1358,8 @@ export default function StudentDetailPage() {
             <EmptyState
               title="No notes yet"
               description="Record achievements, failures, losses, or other important events."
-              actionLabel="Add Note"
-              onAction={() => { setEditingNote(null); setNoteModal(true); }}
+              actionLabel={canEditAcademic ? 'Add Note' : undefined}
+              onAction={canEditAcademic ? () => { setEditingNote(null); setNoteModal(true); } : undefined}
             />
           )}
         </div>

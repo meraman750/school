@@ -76,10 +76,18 @@ export function normalizeListResponse(data) {
   if (Array.isArray(data)) {
     return { results: data, count: data.length, next: null, previous: null };
   }
+  let payload = data;
+  if (payload && typeof payload === 'object' && payload.data != null && payload.results == null) {
+    payload = payload.data;
+  }
+  if (Array.isArray(payload)) {
+    return { results: payload, count: payload.length, next: null, previous: null };
+  }
+  const results = payload?.results ?? [];
   return {
-    results: data?.results ?? [],
-    count: data?.count ?? data?.results?.length ?? 0,
-    next: data?.next ?? null,
-    previous: data?.previous ?? null,
+    results,
+    count: payload?.count ?? results.length,
+    next: payload?.next ?? null,
+    previous: payload?.previous ?? null,
   };
 }

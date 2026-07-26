@@ -6,10 +6,12 @@ import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import { reportsClassPath, reportsListPath } from './reportsConstants';
+import useTeacherAssignedSections from '../../hooks/useTeacherAssignedSections';
 
 export default function ReportsGradeSectionsPage({ gradeLevel }) {
   const grade = Number(gradeLevel);
   const navigate = useNavigate();
+  const { isTeacher, canAccessClass } = useTeacherAssignedSections();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['reports', 'grade-sections', grade],
@@ -17,7 +19,20 @@ export default function ReportsGradeSectionsPage({ gradeLevel }) {
     enabled: grade >= 1 && grade <= 8,
   });
 
-  const sections = data?.sections || [];
+  const sections = (data?.sections || []).filter(
+    (section) => !isTeacher || canAccessClass(grade, section.name),
+  );
+
+  if (isTeacher && !isLoading && sections.length === 0) {
+    return (
+      <EmptyState
+        title="No access to this grade"
+        description="You can only open reports for classes assigned to you."
+        actionLabel="Back to reports"
+        onAction={() => navigate(reportsListPath())}
+      />
+    );
+  }
 
   if (!grade || grade < 1 || grade > 8) {
     return (

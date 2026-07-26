@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/v1/documents/', include('apps.documents.urls')),
     path('api/v1/reports/', include('apps.reports.urls')),
     path('api/v1/settings/', include('apps.settings_app.urls')),
+    path('api/v1/finance/', include('apps.finance.urls')),
 ]
 
 if settings.DEBUG:

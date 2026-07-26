@@ -1,10 +1,12 @@
 from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db.models import Q
 
 from rest_framework import viewsets
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsRegistrar, IsStaffMember
+from apps.core.teacher_scope import get_teacher_for_user, get_teacher_assigned_sections
 
 from .models import (
     Student, Guardian, MedicalInfo, EmergencyContact, StudentDocument, Admission,
@@ -26,6 +28,30 @@ class StudentViewSet(BaseModelViewSet):
     filterset_fields = ['status', 'gender', 'grade_level', 'section', 'city', 'region']
     search_fields = ['first_name', 'last_name', 'phone']
     ordering_fields = ['enrollment_date', 'last_name', 'created_at']
+
+    def get_queryset(self):
+        qs = Student.objects.filter(is_deleted=False)
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        if role == 'TEACHER':
+            teacher = get_teacher_for_user(user)
+            sections = get_teacher_assigned_sections(teacher)
+            if not sections:
+                return qs.none()
+            query = Q()
+            for grade_level, section_name in sections:
+                query |= Q(grade_level=grade_level, section=section_name)
+            return qs.filter(query)
+        return qs
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        role = getattr(request.user, 'role', None)
+        if role in ('FINANCE', 'ACCOUNTANT') and request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            raise MethodNotAllowed(
+                request.method,
+                detail='Finance staff have read-only access to student records.',
+            )
 
     def destroy(self, request, *args, **kwargs):
         raise MethodNotAllowed(
@@ -71,6 +97,20 @@ class StudentGradeReportViewSet(BaseModelViewSet):
         if self.action in ('create', 'update', 'partial_update'):
             return StudentGradeReportWriteSerializer
         return StudentGradeReportSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, 'role', None) != 'TEACHER':
+            return qs
+        teacher = get_teacher_for_user(user)
+        sections = get_teacher_assigned_sections(teacher)
+        if not sections:
+            return qs.none()
+        query = Q()
+        for grade_level, section_name in sections:
+            query |= Q(grade_level=grade_level, student__section=section_name)
+        return qs.filter(query)
 
     def perform_create(self, serializer):
         serializer.save(

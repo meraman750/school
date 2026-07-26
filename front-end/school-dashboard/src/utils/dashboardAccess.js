@@ -18,6 +18,15 @@ export function clearDashboardEntry() {
   }
 }
 
+/** Keep login reachable after logout (same session as biruk-admin unlock). */
+export function ensureDashboardEntry() {
+  try {
+    sessionStorage.setItem(DASHBOARD_ACCESS_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
 export function redirectToPublicSite() {
   const target = PUBLIC_SITE_URL;
   if (window.location.pathname.startsWith('/dashboard')) {

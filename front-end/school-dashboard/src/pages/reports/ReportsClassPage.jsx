@@ -1,7 +1,7 @@
 import {
   useMemo, useState, useEffect, useCallback, useRef,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiChevronDown, FiChevronUp, FiDownload, FiPlus, FiTrash2 } from 'react-icons/fi';
@@ -21,6 +21,7 @@ import {
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
 import { getDisplayName } from '../../utils/formatters';
 import { REPORT_QUARTERS, reportsGradePath } from './reportsConstants';
+import useTeacherAssignedSections from '../../hooks/useTeacherAssignedSections';
 
 const AUTO_SAVE_MS = 700;
 
@@ -101,6 +102,7 @@ async function readApiError(err, fallback) {
 export default function ReportsClassPage({ gradeLevel, sectionName }) {
   const grade = Number(gradeLevel);
   const section = decodeURIComponent(sectionName || '').trim();
+  const { isTeacher, canAccessClass } = useTeacherAssignedSections();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -390,6 +392,10 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
       setExporting(false);
     }
   };
+
+  if (isTeacher && grade && section && !canAccessClass(grade, section)) {
+    return <Navigate to={reportsGradePath(grade)} replace />;
+  }
 
   if (!grade || grade < 1 || grade > 8 || !section) {
     return <EmptyState title="Invalid class" description="Choose a grade and section from reports." />;
