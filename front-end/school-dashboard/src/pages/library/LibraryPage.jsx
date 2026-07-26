@@ -1,7 +1,5 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import CrudModulePage from '../../components/shared/CrudModulePage';
-import { libraryApi, libraryCategoriesApi } from '../../services/api';
+import { libraryApi } from '../../services/api';
 
 const columns = [
   { key: 'title', header: 'Book', render: (r) => <span className="font-semibold">{r.title || r.name}</span> },
@@ -13,6 +11,16 @@ const columns = [
   { key: 'shelf_row', header: 'Row on Shelf', render: (r) => (r.shelf_row != null ? r.shelf_row : '—') },
 ];
 
+const formFields = [
+  { name: 'title', label: 'Book', required: true },
+  { name: 'isbn', label: 'ISBN' },
+  { name: 'author', label: 'Author', required: true },
+  { name: 'category', label: 'Category' },
+  { name: 'copies', label: 'Copies', type: 'number', min: 1, required: true },
+  { name: 'shelf_number', label: 'Shelf Number', type: 'number', min: 1, required: true },
+  { name: 'shelf_row', label: 'Row on Shelf', type: 'number', min: 1, required: true },
+];
+
 function preparePayload(formData, editing) {
   const payload = {
     title: (formData.title || '').trim(),
@@ -22,9 +30,7 @@ function preparePayload(formData, editing) {
   const isbn = (formData.isbn || '').trim();
   if (isbn) payload.isbn = isbn;
 
-  if (formData.category) {
-    payload.category = Number(formData.category);
-  }
+  payload.category_input = (formData.category || '').trim();
 
   const copies = Number(formData.copies);
   if (Number.isInteger(copies) && copies >= 1) {
@@ -41,46 +47,7 @@ function preparePayload(formData, editing) {
   return payload;
 }
 
-const defaultValues = {
-  title: '',
-  isbn: '',
-  author: '',
-  category: '',
-  copies: 1,
-  shelf_number: '',
-  shelf_row: '',
-};
-
 export default function LibraryPage() {
-  const { data: categoriesData } = useQuery({
-    queryKey: ['library', 'categories'],
-    queryFn: () => libraryCategoriesApi.list({ page_size: 100 }),
-  });
-
-  const categoryOptions = useMemo(() => {
-    const list = categoriesData?.results || categoriesData || [];
-    return list.map((c) => ({ value: String(c.id), label: c.name }));
-  }, [categoriesData]);
-
-  const formFields = useMemo(
-    () => [
-      { name: 'title', label: 'Book', required: true },
-      { name: 'isbn', label: 'ISBN' },
-      { name: 'author', label: 'Author', required: true },
-      {
-        name: 'category',
-        label: 'Category',
-        type: 'select',
-        options: categoryOptions,
-        placeholder: categoryOptions.length ? 'Select category...' : 'No categories yet',
-      },
-      { name: 'copies', label: 'Copies', type: 'number', min: 1, required: true },
-      { name: 'shelf_number', label: 'Shelf Number', type: 'number', min: 1, required: true },
-      { name: 'shelf_row', label: 'Row on Shelf', type: 'number', min: 1, required: true },
-    ],
-    [categoryOptions],
-  );
-
   return (
     <CrudModulePage
       title="Library"
@@ -90,7 +57,15 @@ export default function LibraryPage() {
       columns={columns}
       formFields={formFields}
       preparePayload={preparePayload}
-      getDefaultValues={() => ({ ...defaultValues })}
+      getDefaultValues={() => ({
+        title: '',
+        isbn: '',
+        author: '',
+        category: '',
+        copies: 1,
+        shelf_number: '',
+        shelf_row: '',
+      })}
       searchPlaceholder="Search books..."
       createLabel="Add Book"
     />

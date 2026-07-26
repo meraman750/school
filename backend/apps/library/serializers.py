@@ -12,11 +12,37 @@ class BookCategorySerializer(serializers.ModelSerializer):
 
 class BookSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_input = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     class Meta:
         model = Book
         fields = '__all__'
         read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted', 'available_copies')
+        extra_kwargs = {
+            'category': {'read_only': True},
+        }
+
+    def _resolve_category(self, name):
+        cleaned = (name or '').strip()
+        if not cleaned:
+            return None
+        user = self.context['request'].user
+        category, _ = BookCategory.objects.get_or_create(
+            name=cleaned,
+            defaults={'created_by': user, 'updated_by': user},
+        )
+        return category
+
+    def create(self, validated_data):
+        category_input = validated_data.pop('category_input', '')
+        validated_data['category'] = self._resolve_category(category_input)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if 'category_input' in validated_data:
+            category_input = validated_data.pop('category_input')
+            validated_data['category'] = self._resolve_category(category_input)
+        return super().update(instance, validated_data)
 
     def validate_isbn(self, value):
         if value is None:
