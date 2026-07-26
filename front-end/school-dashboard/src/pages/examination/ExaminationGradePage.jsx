@@ -103,22 +103,16 @@ export default function ExaminationGradePage() {
     setTitle(plan.title || `Grade ${grade} Exam Schedule`);
   }, [plan, grade]);
 
-  const availableDayOptions = useMemo(() => {
-    const used = new Set(activeDays);
-    return EXAM_WEEK_DAYS.filter((d) => !used.has(d.value)).map((d) => ({
-      value: String(d.value),
-      label: d.label,
-    }));
-  }, [activeDays]);
+  const weekDayOptions = useMemo(
+    () => EXAM_WEEK_DAYS.map((d) => ({ value: String(d.value), label: d.label })),
+    [],
+  );
 
   useEffect(() => {
-    if (availableDayOptions.length && !pickDayValue) {
-      setPickDayValue(availableDayOptions[0].value);
+    if (!pickDayValue && weekDayOptions.length) {
+      setPickDayValue(weekDayOptions[0].value);
     }
-    if (!availableDayOptions.length) {
-      setPickDayValue('');
-    }
-  }, [availableDayOptions, pickDayValue]);
+  }, [weekDayOptions, pickDayValue]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -161,11 +155,14 @@ export default function ExaminationGradePage() {
 
   const handleAddDay = () => {
     const dayNum = Number(pickDayValue);
-    if (!dayNum || activeDays.includes(dayNum)) {
-      toast.error('Choose a day that is not already on the list');
+    if (!dayNum) {
+      toast.error('Choose a day');
       return;
     }
-    setActiveDays((prev) => [...prev, dayNum]);
+    setActiveDays((prev) => {
+      if (!prev.includes(dayNum)) return [...prev, dayNum];
+      return [...prev.filter((d) => d !== dayNum), dayNum];
+    });
     setDaysDirty(true);
   };
 
@@ -287,20 +284,14 @@ export default function ExaminationGradePage() {
         <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="min-w-[200px] flex-1 max-w-xs">
             <Select
-              label="Add day"
-              options={availableDayOptions}
+              label="Choose day"
+              options={weekDayOptions}
               value={pickDayValue}
               onChange={(e) => setPickDayValue(e.target.value)}
-              placeholder={availableDayOptions.length ? 'Select day' : 'All days added'}
-              disabled={!availableDayOptions.length}
+              placeholder="Select day"
             />
           </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleAddDay}
-            disabled={!availableDayOptions.length}
-          >
+          <Button size="sm" variant="secondary" onClick={handleAddDay}>
             <FiPlus /> Add day
           </Button>
         </div>
