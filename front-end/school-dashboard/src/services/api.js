@@ -201,13 +201,48 @@ export const exportReport = async (type) => {
 };
 
 export const exportClassStudentMarksReport = async (params) => {
-  const response = await api.get('reports/students/class-marks/', {
-    params: { format: 'excel', ...params },
-    responseType: 'blob',
-  });
+  let response;
+  try {
+    response = await api.get('reports/students/class-marks/', {
+      params: { export_as: 'excel', ...params },
+      responseType: 'blob',
+    });
+  } catch (err) {
+    const data = err.response?.data;
+    if (data instanceof Blob) {
+      const text = await data.text();
+      let message = 'Export failed';
+      try {
+        const body = JSON.parse(text);
+        message = body.detail || body.error?.message || message;
+      } catch {
+        if (text) message = text.slice(0, 200);
+      }
+      throw new Error(message);
+    }
+    throw err;
+  }
+
+  const contentType = response.headers['content-type'] || '';
+  if (response.status >= 400 || contentType.includes('application/json')) {
+    const text = await response.data.text();
+    let message = 'Export failed';
+    try {
+      const body = JSON.parse(text);
+      message = body.detail || body.error?.message || message;
+    } catch {
+      if (text) message = text.slice(0, 200);
+    }
+    throw new Error(message);
+  }
+
   const grade = params.grade_level ?? 'grade';
   const section = params.section ?? 'section';
-  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const url = window.URL.createObjectURL(
+    new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }),
+  );
   const link = document.createElement('a');
   link.href = url;
   link.setAttribute('download', `grade_${grade}_section_${section}_report.xlsx`);

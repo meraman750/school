@@ -1,8 +1,10 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import {
+  useMemo, useState, useEffect, useCallback, useRef,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { FiArrowLeft, FiChevronDown, FiChevronUp, FiDownload, FiPlus, FiSave, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronDown, FiChevronUp, FiDownload, FiPlus, FiTrash2 } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
@@ -19,6 +21,8 @@ import {
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
 import { getDisplayName } from '../../utils/formatters';
 import { REPORT_QUARTERS, reportsGradePath } from './reportsConstants';
+
+const AUTO_SAVE_MS = 700;
 
 function newEntryRow() {
   return {
@@ -53,6 +57,10 @@ function buildEntriesPayload(rows) {
     .filter(Boolean);
 }
 
+function payloadSignature(entries) {
+  return JSON.stringify(entries);
+}
+
 function subjectOptionsForRow(allOptions, entries, rowKey) {
   const current = entries.find((r) => r.rowKey === rowKey)?.subjectId;
   const usedElsewhere = new Set(
@@ -63,6 +71,31 @@ function subjectOptionsForRow(allOptions, entries, rowKey) {
   return allOptions.filter(
     (opt) => opt.value === current || !usedElsewhere.has(opt.value),
   );
+}
+
+function marksFromReport(report) {
+  if (report?.entries?.length) {
+    return report.entries.map((entry) => ({
+      rowKey: `saved-${entry.id}`,
+      subjectId: entry.subject != null ? String(entry.subject) : '',
+      score: entry.score != null ? String(entry.score) : '',
+    }));
+  }
+  return [newEntryRow()];
+}
+
+async function readApiError(err, fallback) {
+  const data = err?.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text();
+      const body = JSON.parse(text);
+      return body.detail || body.error?.message || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return err?.response?.data?.detail || err?.message || fallback;
 }
 
 export default function ReportsClassPage({ gradeLevel, sectionName }) {
@@ -94,9 +127,14 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
   const [academicYear, setAcademicYear] = useState('');
   const [quarter, setQuarter] = useState('1');
   const [studentMarks, setStudentMarks] = useState({});
-  const [expandedStudentIds, setExpandedStudentIds] = useState(() => new Set());
-  const [saving, setSaving] = useState(false);
+  const [expandedStudentId, setExpandedStudentId] = useState(null);
   const [exporting, setExporting] = useState(false);
+
+  const saveTimersRef = useRef({});
+  const lastSavedRef = useRef({});
+  const reportsByStudentRef = useRef({});
+  const studentMarksRef = useRef({});
+  const persistInFlightRef = useRef({});
 
   const subjectOptions = useMemo(() => {
     const list = gradeSubjects?.length
@@ -157,23 +195,45 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
     return map;
   }, [reportsData, students]);
 
+  reportsByStudentRef.current = reportsByStudent;
+  studentMarksRef.current = studentMarks;
+
+  const studentIdsKey = students.map((s) => s.id).join(',');
+  const periodKey = `${academicYear}-${quarter}-${studentIdsKey}`;
+
   useEffect(() => {
-    const next = {};
-    students.forEach((student) => {
-      const report = reportsByStudent[student.id];
-      if (report?.entries?.length) {
-        next[student.id] = report.entries.map((entry) => ({
-          rowKey: `saved-${entry.id}`,
-          subjectId: entry.subject != null ? String(entry.subject) : '',
-          score: entry.score != null ? String(entry.score) : '',
-        }));
-      } else {
-        next[student.id] = [newEntryRow()];
-      }
+    setExpandedStudentId(null);
+    lastSavedRef.current = {};
+    setStudentMarks({});
+  }, [periodKey]);
+
+  useEffect(() => {
+    if (reportsLoading || !academicYear || !quarter || !students.length) return;
+
+    setStudentMarks((prev) => {
+      const initialLoad = Object.keys(prev).length === 0;
+      const next = initialLoad ? {} : { ...prev };
+
+      students.forEach((student) => {
+        if (!initialLoad && student.id === expandedStudentId) {
+          return;
+        }
+        next[student.id] = marksFromReport(reportsByStudent[student.id]);
+        const entries = buildEntriesPayload(next[student.id] || []);
+        lastSavedRef.current[student.id] = payloadSignature(entries);
+      });
+
+      return next;
     });
-    setStudentMarks(next);
-    setExpandedStudentIds(new Set());
-  }, [students, reportsByStudent, academicYear, quarter]);
+  }, [
+    reportsData,
+    reportsLoading,
+    academicYear,
+    quarter,
+    students,
+    reportsByStudent,
+    expandedStudentId,
+  ]);
 
   const rankPreview = useMemo(() => {
     const rows = students.map((student) => {
@@ -183,7 +243,6 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
       return {
         studentId: student.id,
         previewAverage: avg,
-        savedRank: report?.class_rank,
         savedAverage: report?.overall_average != null ? Number(report.overall_average) : null,
       };
     });
@@ -198,17 +257,86 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
     withAvg.forEach((row, index) => {
       rankMap[row.studentId] = index + 1;
     });
-    return { rankMap, classSize: withAvg.length };
+    const savedRankMap = {};
+    students.forEach((s) => {
+      const r = reportsByStudent[s.id];
+      if (r?.class_rank) savedRankMap[s.id] = r.class_rank;
+    });
+    return { rankMap, savedRankMap, classSize: withAvg.length };
   }, [students, studentMarks, reportsByStudent]);
 
-  const toggleExpanded = useCallback((studentId) => {
-    setExpandedStudentIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(studentId)) next.delete(studentId);
-      else next.add(studentId);
-      return next;
-    });
+  const persistStudent = useCallback(async (studentId) => {
+    if (!academicYear || !quarter) return;
+    if (persistInFlightRef.current[studentId]) return;
+
+    const rows = studentMarksRef.current[studentId] || [];
+    const entries = buildEntriesPayload(rows);
+    const signature = payloadSignature(entries);
+    if (lastSavedRef.current[studentId] === signature) return;
+
+    persistInFlightRef.current[studentId] = true;
+    try {
+      const report = reportsByStudentRef.current[studentId];
+      if (!entries.length) {
+        if (report?.id) {
+          await studentGradeReportsApi.delete(report.id);
+        }
+        lastSavedRef.current[studentId] = signature;
+      } else {
+        await studentGradeReportsApi.create({
+          student: studentId,
+          academic_year: Number(academicYear),
+          grade_level: grade,
+          quarter: Number(quarter),
+          teacher_remarks: '',
+          principal_remarks: '',
+          entries,
+        });
+        lastSavedRef.current[studentId] = signature;
+      }
+      await queryClient.invalidateQueries({ queryKey: reportsQueryKey });
+    } catch (err) {
+      const msg = await readApiError(err, 'Could not save marks');
+      toast.error(typeof msg === 'string' ? msg : 'Could not save marks');
+    } finally {
+      persistInFlightRef.current[studentId] = false;
+    }
+  }, [academicYear, quarter, grade, queryClient, reportsQueryKey]);
+
+  const scheduleAutoSave = useCallback((studentId) => {
+    if (saveTimersRef.current[studentId]) {
+      clearTimeout(saveTimersRef.current[studentId]);
+    }
+    saveTimersRef.current[studentId] = setTimeout(() => {
+      persistStudent(studentId);
+    }, AUTO_SAVE_MS);
+  }, [persistStudent]);
+
+  const flushAutoSave = useCallback((studentId) => {
+    if (!studentId) return;
+    if (saveTimersRef.current[studentId]) {
+      clearTimeout(saveTimersRef.current[studentId]);
+      delete saveTimersRef.current[studentId];
+    }
+    persistStudent(studentId);
+  }, [persistStudent]);
+
+  useEffect(() => () => {
+    Object.values(saveTimersRef.current).forEach(clearTimeout);
   }, []);
+
+  const selectStudent = useCallback((studentId) => {
+    setExpandedStudentId((prev) => {
+      if (prev && prev !== studentId) {
+        flushAutoSave(prev);
+      }
+      if (prev === studentId) {
+        flushAutoSave(studentId);
+        return null;
+      }
+      return studentId;
+    });
+  }, [flushAutoSave]);
 
   const updateEntry = useCallback((studentId, rowKey, field, value) => {
     setStudentMarks((prev) => {
@@ -217,14 +345,15 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
       );
       return { ...prev, [studentId]: rows };
     });
-  }, []);
+    scheduleAutoSave(studentId);
+  }, [scheduleAutoSave]);
 
   const addEntry = useCallback((studentId) => {
     setStudentMarks((prev) => ({
       ...prev,
       [studentId]: [...(prev[studentId] || []), newEntryRow()],
     }));
-    setExpandedStudentIds((prev) => new Set(prev).add(studentId));
+    setExpandedStudentId(studentId);
   }, []);
 
   const removeEntry = useCallback((studentId, rowKey) => {
@@ -235,50 +364,16 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
         [studentId]: rows.length ? rows : [newEntryRow()],
       };
     });
-  }, []);
-
-  const handleSaveAll = async () => {
-    if (!academicYear || !quarter) {
-      toast.error('Select academic year and quarter');
-      return;
-    }
-    setSaving(true);
-    let saved = 0;
-    try {
-      for (const student of students) {
-        const entries = buildEntriesPayload(studentMarks[student.id] || []);
-        if (!entries.length) continue;
-        await studentGradeReportsApi.create({
-          student: student.id,
-          academic_year: Number(academicYear),
-          grade_level: grade,
-          quarter: Number(quarter),
-          teacher_remarks: '',
-          principal_remarks: '',
-          entries,
-        });
-        saved += 1;
-      }
-      if (!saved) {
-        toast.error('Enter at least one subject score for a student');
-      } else {
-        toast.success(`Saved reports for ${saved} student${saved === 1 ? '' : 's'}`);
-        queryClient.invalidateQueries({ queryKey: reportsQueryKey });
-      }
-    } catch (err) {
-      const detail = err?.response?.data?.detail
-        || err?.response?.data?.entries
-        || err?.response?.data?.non_field_errors;
-      toast.error(typeof detail === 'string' ? detail : 'Failed to save reports');
-    } finally {
-      setSaving(false);
-    }
-  };
+    scheduleAutoSave(studentId);
+  }, [scheduleAutoSave]);
 
   const handleExport = async () => {
     if (!academicYear || !quarter) {
       toast.error('Select academic year and quarter');
       return;
+    }
+    if (expandedStudentId) {
+      flushAutoSave(expandedStudentId);
     }
     setExporting(true);
     try {
@@ -289,8 +384,8 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
         quarter,
       });
       toast.success('Report downloaded');
-    } catch {
-      toast.error('Export failed');
+    } catch (err) {
+      toast.error(err.message || 'Export failed');
     } finally {
       setExporting(false);
     }
@@ -320,18 +415,13 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
               Grade {grade} — Section {section}
             </h1>
             <p className="text-xs text-gray-500">
-              Click a student to enter marks. Choose subjects from the list (0–100).
+              Click a student to enter marks. Changes save automatically.
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={handleExport} loading={exporting}>
-            <FiDownload /> Export Excel
-          </Button>
-          <Button onClick={handleSaveAll} loading={saving}>
-            <FiSave /> Save all
-          </Button>
-        </div>
+        <Button variant="secondary" onClick={handleExport} loading={exporting}>
+          <FiDownload /> Export Excel
+        </Button>
       </div>
 
       <Card padding className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -371,15 +461,18 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
           {students.map((student) => {
             const entries = studentMarks[student.id] || [newEntryRow()];
             const average = computeAverage(entries);
-            const rank = rankPreview.rankMap[student.id];
-            const classSize = rankPreview.classSize;
-            const isExpanded = expandedStudentIds.has(student.id);
+            const report = reportsByStudent[student.id];
+            const previewRank = rankPreview.rankMap[student.id];
+            const savedRank = report?.class_rank ?? rankPreview.savedRankMap[student.id];
+            const rank = previewRank ?? savedRank;
+            const classSize = report?.class_size || rankPreview.classSize;
+            const isExpanded = expandedStudentId === student.id;
             return (
               <li key={student.id}>
                 <Card padding={false} className="overflow-hidden">
                   <button
                     type="button"
-                    onClick={() => toggleExpanded(student.id)}
+                    onClick={() => selectStudent(student.id)}
                     className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/50"
                     aria-expanded={isExpanded}
                   >
@@ -390,7 +483,7 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <Badge variant="default">
-                        Avg: {average != null ? average : '—'}
+                        Avg: {average != null ? average : (report?.overall_average ?? '—')}
                       </Badge>
                       <Badge variant="primary">
                         Rank: {rank ? `${rank}${classSize ? ` / ${classSize}` : ''}` : '—'}

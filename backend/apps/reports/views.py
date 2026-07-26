@@ -16,7 +16,7 @@ class ClassStudentMarksReportView(APIView):
     permission_classes = [IsStaffMember]
 
     def get(self, request):
-        export_format = request.query_params.get('format', 'excel')
+        export_format = request.query_params.get('export_as', 'excel')
         grade_level = request.query_params.get('grade_level')
         section = (request.query_params.get('section') or '').strip()
         academic_year = request.query_params.get('academic_year')
