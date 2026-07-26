@@ -153,6 +153,14 @@ export const academicsSubApi = {
     ...createResourceService('academics/grade-exam-schedules'),
     ensureGradeSample: (gradeLevel) =>
       api.post('academics/grade-exam-schedules/ensure-grade-sample/', { grade_level: gradeLevel }).then((r) => r.data),
+    getGradePlan: (gradeLevel) =>
+      api
+        .get('academics/grade-exam-schedules/grade-plan/', { params: { grade_level: gradeLevel } })
+        .then((r) => r.data),
+    updateGradePlan: (gradeLevel, data) =>
+      api
+        .patch('academics/grade-exam-schedules/grade-plan/', { grade_level: gradeLevel, ...data })
+        .then((r) => r.data),
   },
   grades: createResourceService('academics/grades'),
   gradeItems: {
