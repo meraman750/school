@@ -56,6 +56,10 @@ Edit `.env` and set at minimum:
 
 ### 2. Build and run
 
+**Oracle Always Free (recommended):** see **[DEPLOY-ORACLE.md](./DEPLOY-ORACLE.md)** and use `docker-compose.oracle.yml`.
+
+**Generic production:**
+
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env up --build -d
 ```

@@ -97,6 +97,8 @@ See `backend/.env.example`, `front-end/school-website/.env.example`, `front-end/
 
 Full checklist: **[DEPLOY.md](./DEPLOY.md)**
 
+**Oracle Cloud (free tier), step-by-step:** **[DEPLOY-ORACLE.md](./DEPLOY-ORACLE.md)**
+
 ## License
 
 Proprietary - Biruk Academy Primary School
