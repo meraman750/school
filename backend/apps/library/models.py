@@ -27,6 +27,8 @@ class Book(BaseModel):
     publication_year = models.PositiveIntegerField(null=True, blank=True)
     total_copies = models.PositiveIntegerField(default=1)
     available_copies = models.PositiveIntegerField(default=1)
+    shelf_number = models.CharField(max_length=50, blank=True)
+    shelf_row = models.CharField(max_length=50, blank=True, help_text='Row position on the shelf.')
     shelf_location = models.CharField(max_length=50, blank=True)
     cover_image = models.ImageField(upload_to='library/covers/', blank=True, null=True)
     description = models.TextField(blank=True)
