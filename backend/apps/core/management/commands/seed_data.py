@@ -143,6 +143,8 @@ class Command(BaseCommand):
             teacher.user = teacher_user
             teacher.save(update_fields=['user'])
 
+        SchoolClass.objects.filter(class_teacher=teacher).update(class_teacher=None)
+
         TeacherQualification.objects.get_or_create(
             teacher=teacher,
             degree='B.Ed',

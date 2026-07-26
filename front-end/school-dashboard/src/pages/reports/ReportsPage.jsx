@@ -12,7 +12,18 @@ export default function ReportsPage() {
     ? gradeLevels
     : REPORT_GRADE_LEVELS;
 
-  if (isTeacher && !isLoading && grades.length === 0) {
+  if (isTeacher && isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Student Reports</h2>
+          <p className="mt-0.5 text-xs text-gray-500">Loading your assigned classes…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTeacher && grades.length === 0) {
     return (
       <EmptyState
         title="No classes assigned"
