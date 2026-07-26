@@ -13,11 +13,20 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
 
-  const navClass = ({ isActive }) =>
-    `text-sm font-medium transition-colors ${
+  const linkProps = (path) => (path === '/' ? { end: true } : {})
+
+  const desktopNavClass = ({ isActive }) =>
+    `rounded-lg px-3 py-2 text-sm transition-colors ${
       isActive
-        ? 'text-primary dark:text-primary-light'
-        : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary-light'
+        ? 'bg-primary font-semibold text-white shadow-sm dark:bg-primary dark:text-white'
+        : 'font-medium text-gray-600 hover:bg-gray-100 hover:text-primary dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-primary-light'
+    }`
+
+  const mobileNavClass = ({ isActive }) =>
+    `px-4 py-3 rounded-xl text-sm transition-colors ${
+      isActive
+        ? 'bg-primary font-semibold text-white shadow-sm dark:bg-primary'
+        : 'font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
     }`
 
   return (
@@ -35,9 +44,14 @@ export default function Header() {
               </div>
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-8">
+            <nav className="hidden lg:flex items-center gap-1">
               {NAV_LINKS.map((link) => (
-                <NavLink key={link.path} to={link.path} className={navClass}>
+                <NavLink
+                  key={link.path}
+                  to={link.path}
+                  {...linkProps(link.path)}
+                  className={desktopNavClass}
+                >
                   {link.label}
                 </NavLink>
               ))}
@@ -91,14 +105,9 @@ export default function Header() {
                   <NavLink
                     key={link.path}
                     to={link.path}
+                    {...linkProps(link.path)}
                     onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      `px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                      }`
-                    }
+                    className={mobileNavClass}
                   >
                     {link.label}
                   </NavLink>
