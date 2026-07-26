@@ -59,15 +59,21 @@ npm run dev
 
 URL: `http://localhost:3001/dashboard/`
 
-## Docker (Production)
+Set `VITE_SHOW_DEMO=true` in `.env` to show demo account shortcuts on the login page.
+
+## Docker
+
+**Local / dev:** `docker-compose.yml` (exposes Postgres and Redis on localhost)
 
 ```bash
 cp backend/.env.example backend/.env
-docker-compose up --build
+docker compose up --build
 ```
 
+**Production:** see **[DEPLOY.md](./DEPLOY.md)** — use `docker-compose.prod.yml` and root `.env` from `.env.production.example`.
+
 - Website: `http://localhost/`
-- Dashboard: `http://localhost/dashboard`
+- Dashboard: `http://localhost/dashboard/`
 - API: `http://localhost/api/v1/`
 
 ## Modules
@@ -85,7 +91,11 @@ docker-compose up --build
 
 ## Environment Variables
 
-See `backend/.env.example`, `front-end/school-website/.env.example`, and `front-end/school-dashboard/.env.example`.
+See `backend/.env.example`, `front-end/school-website/.env.example`, `front-end/school-dashboard/.env.example`, and **`.env.production.example`** for Docker production.
+
+## Deployment
+
+Full checklist: **[DEPLOY.md](./DEPLOY.md)**
 
 ## License
 

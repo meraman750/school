@@ -1,3 +1,6 @@
+# Local development — exposes DB/Redis ports and mounts source for hot reload.
+# For production use: docker compose -f docker-compose.prod.yml (see DEPLOY.md)
+
 version: '3.9'
 
 services:

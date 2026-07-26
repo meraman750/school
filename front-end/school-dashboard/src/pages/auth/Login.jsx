@@ -6,21 +6,30 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import { DEMO_CREDENTIALS } from '../../utils/constants';
+import { DEMO_ACCOUNTS, DEMO_CREDENTIALS } from '../../utils/constants';
+import { tokenStorage } from '../../services/api';
+import { getHomePath, normalizeRole } from '../../utils/roles';
 
 const loginSchema = z.object({
   email: z.string().email('Valid email required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const showDemoAccounts = import.meta.env.VITE_SHOW_DEMO === 'true';
+
 export default function Login() {
   const { login, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: { email: DEMO_CREDENTIALS.email, password: DEMO_CREDENTIALS.password },
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
+    defaultValues: showDemoAccounts
+      ? { email: DEMO_CREDENTIALS.email, password: DEMO_CREDENTIALS.password }
+      : { email: '', password: '' },
   });
 
-  if (isAuthenticated) return <Navigate to="/" replace />;
+  if (isAuthenticated) {
+    const stored = tokenStorage.getUser();
+    return <Navigate to={getHomePath(normalizeRole(stored?.role))} replace />;
+  }
 
   const onSubmit = async (data) => {
     const parsed = loginSchema.safeParse(data);
@@ -31,7 +40,8 @@ export default function Login() {
     const result = await login(data.email, data.password);
     if (result.success) {
       toast.success('Welcome back!');
-      navigate('/');
+      const stored = tokenStorage.getUser();
+      navigate(getHomePath(normalizeRole(stored?.role)));
     } else {
       toast.error(result.message);
     }
@@ -61,6 +71,33 @@ export default function Login() {
             Sign In
           </Button>
         </form>
+
+        {showDemoAccounts ? (
+        <div className="mt-8 border-t border-gray-100 pt-6 dark:border-gray-800">
+          <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Demo accounts
+          </p>
+          <p className="mb-3 text-center text-[10px] text-gray-500">
+            Run <code className="rounded bg-gray-100 px-1 dark:bg-gray-800">python manage.py seed_data</code> in the backend if login fails.
+          </p>
+          <div className="space-y-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => {
+                  setValue('email', account.email);
+                  setValue('password', account.password);
+                }}
+                className="flex w-full items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-left text-xs transition-colors hover:border-primary/30 hover:bg-primary/5 dark:border-gray-800 dark:bg-gray-800/50"
+              >
+                <span className="font-bold text-gray-800 dark:text-gray-200">{account.role}</span>
+                <span className="truncate pl-2 font-mono text-[10px] text-gray-500">{account.email}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        ) : null}
       </motion.div>
     </div>
   );

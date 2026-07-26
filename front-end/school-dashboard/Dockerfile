@@ -10,6 +10,9 @@ COPY . .
 ARG VITE_API_URL=http://localhost:8000/api/v1
 ENV VITE_API_URL=$VITE_API_URL
 
+ARG VITE_SHOW_DEMO=false
+ENV VITE_SHOW_DEMO=$VITE_SHOW_DEMO
+
 RUN npm run build
 
 FROM nginx:alpine
