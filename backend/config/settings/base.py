@@ -32,7 +32,6 @@ INSTALLED_APPS = [
     'apps.library',
     'apps.website',
     'apps.transport',
-    'apps.inventory',
     'apps.documents',
     'apps.reports',
     'apps.settings_app',

@@ -80,7 +80,6 @@ docker-compose up --build
 | Academics | Classes, subjects, exams, grades, timetables |
 | Library | Books, borrowing, fines |
 | Transport | Routes, vehicles, assignments |
-| Inventory | Assets, supplies, stock |
 | Documents | File management |
 | Reports | PDF, Excel, CSV exports |
 | Website | Public CMS content |
