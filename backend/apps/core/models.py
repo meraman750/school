@@ -58,6 +58,7 @@ class DashboardActivity(models.Model):
     action = models.CharField(max_length=32)
     summary = models.CharField(max_length=512)
     detail = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
     http_method = models.CharField(max_length=16, blank=True)
     path = models.CharField(max_length=512, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

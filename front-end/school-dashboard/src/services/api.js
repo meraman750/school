@@ -146,6 +146,7 @@ export const settingsApi = createResourceService('settings/school-profile');
 export const dashboardApi = {
   getStats: () => api.get('dashboard/stats/').then((r) => r.data),
   getActivities: (params) => api.get('dashboard/activities/', { params }).then((r) => r.data),
+  getActivity: (id) => api.get(`dashboard/activities/${id}/`).then((r) => r.data),
 };
 
 export const portalApi = {

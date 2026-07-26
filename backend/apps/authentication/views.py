@@ -15,7 +15,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.core.permissions import IsSuperAdmin, IsPrincipal
-from apps.core.activity_log import record_dashboard_activity, TRACKED_ROLES
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserUpdateSerializer,
     ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer,
@@ -57,22 +56,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 class LoginView(CustomTokenObtainPairView):
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        if response.status_code == 200:
-            user_data = response.data.get('user') or {}
-            user_id = user_data.get('id')
-            if user_id:
-                user = User.objects.filter(pk=user_id).first()
-                if user and user.role in TRACKED_ROLES:
-                    record_dashboard_activity(
-                        request,
-                        user=user,
-                        module='auth',
-                        action='LOGIN',
-                        summary='Signed in to the dashboard',
-                    )
-        return response
+    pass
 
 
 class RefreshView(TokenRefreshView):
@@ -83,20 +67,11 @@ class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        user = request.user
         try:
             refresh_token = request.data.get('refresh')
             if refresh_token:
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-            if user.is_authenticated and user.role in TRACKED_ROLES:
-                record_dashboard_activity(
-                    request,
-                    user=user,
-                    module='auth',
-                    action='LOGOUT',
-                    summary='Signed out of the dashboard',
-                )
             return Response({'success': True, 'message': 'Logged out successfully.'})
         except Exception:
             return Response(

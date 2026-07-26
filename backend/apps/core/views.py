@@ -129,13 +129,33 @@ class PortalContextView(APIView):
         })
 
 
+def _serialize_activity(row, *, full=False):
+    data = {
+        'id': row.id,
+        'created_at': row.created_at.isoformat(),
+        'actor_name': row.actor_name,
+        'actor_role': row.actor_role,
+        'actor_email': row.actor_email,
+        'module': row.module,
+        'action': row.action,
+        'summary': row.summary,
+        'detail_preview': (row.detail[:160] + '…') if len(row.detail or '') > 160 else (row.detail or ''),
+        'http_method': row.http_method,
+        'path': row.path,
+    }
+    if full:
+        data['detail'] = row.detail
+        data['metadata'] = row.metadata or {}
+    return data
+
+
 class DashboardActivityListView(APIView):
     """Admin-only feed of finance, teacher, and portal user actions."""
     permission_classes = [IsSchoolAdmin]
     pagination_class = StandardResultsSetPagination
 
     def get(self, request):
-        qs = DashboardActivity.objects.all().order_by('-created_at')
+        qs = DashboardActivity.objects.exclude(module='auth').order_by('-created_at')
         role = request.query_params.get('role')
         if role:
             qs = qs.filter(actor_role=role.upper())
@@ -152,20 +172,15 @@ class DashboardActivityListView(APIView):
             )
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(qs, request)
-        results = [
-            {
-                'id': row.id,
-                'created_at': row.created_at.isoformat(),
-                'actor_name': row.actor_name,
-                'actor_role': row.actor_role,
-                'actor_email': row.actor_email,
-                'module': row.module,
-                'action': row.action,
-                'summary': row.summary,
-                'detail': row.detail,
-                'http_method': row.http_method,
-                'path': row.path,
-            }
-            for row in page
-        ]
+        results = [_serialize_activity(row) for row in page]
         return paginator.get_paginated_response(results)
+
+
+class DashboardActivityDetailView(APIView):
+    permission_classes = [IsSchoolAdmin]
+
+    def get(self, request, activity_id):
+        row = DashboardActivity.objects.exclude(module='auth').filter(pk=activity_id).first()
+        if not row:
+            return Response({'detail': 'Activity not found.'}, status=404)
+        return Response(_serialize_activity(row, full=True))
