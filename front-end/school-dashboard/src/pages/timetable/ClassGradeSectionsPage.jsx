@@ -6,7 +6,6 @@ import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import useModulePaths from '../../hooks/useModulePaths';
-import usePortalContext from '../../hooks/usePortalContext';
 import { useAuth } from '../../context/AuthContext';
 import { isTeacherRole, normalizeRole } from '../../utils/roles';
 
@@ -16,7 +15,6 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
   const { user } = useAuth();
   const isTeacher = isTeacherRole(normalizeRole(user?.role));
   const { timetableListPath, timetableSectionPath } = useModulePaths();
-  const { isPortal, primaryStudent } = usePortalContext();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timetable', 'grade-sections', grade],
@@ -24,11 +22,7 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
     enabled: grade >= 1 && grade <= 8,
   });
 
-  let sections = data?.sections || [];
-  if (isPortal && primaryStudent?.section) {
-    const mine = String(primaryStudent.section).trim().toUpperCase();
-    sections = sections.filter((s) => String(s.name).trim().toUpperCase() === mine);
-  }
+  const sections = data?.sections || [];
 
   if (!grade || grade < 1 || grade > 8) {
     return (

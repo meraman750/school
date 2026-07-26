@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsStaffMember, IsTeacher, IsStaffMemberOrPortalReadOnly
-from apps.core.portal_scope import filter_queryset_for_portal, get_portal_grade_levels, portal_may_access_grade
+from apps.core.portal_scope import get_portal_grade_levels
 
 from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
@@ -82,8 +82,6 @@ class SchoolClassViewSet(BaseModelViewSet):
             return Response({'detail': 'Invalid grade_level.'}, status=400)
         if grade_level < 1 or grade_level > 8:
             return Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
-        if not portal_may_access_grade(request.user, grade_level):
-            return Response({'detail': 'You may only access your enrolled grade.'}, status=403)
 
         academic_year = AcademicYear.objects.filter(is_current=True).first()
         if not academic_year:
@@ -185,9 +183,6 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
     filterset_fields = ['grade_level', 'subject', 'exam_date']
     ordering_fields = ['exam_date', 'start_time', 'schedule_slot_index']
 
-    def get_queryset(self):
-        return filter_queryset_for_portal(self.request.user, super().get_queryset())
-
     def _parse_grade_level(self, request):
         grade_level = request.query_params.get('grade_level')
         if grade_level is None and hasattr(request, 'data'):
@@ -207,8 +202,6 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
         grade_level, err = self._parse_grade_level(request)
         if err:
             return err
-        if not portal_may_access_grade(request.user, grade_level):
-            return Response({'detail': 'You may only access your enrolled grade.'}, status=403)
         user = request.user
         if request.method == 'GET':
             plan, _ = GradeExamSchedulePlan.objects.get_or_create(
@@ -505,15 +498,6 @@ class AnnualScheduleViewSet(BaseModelViewSet):
     search_fields = ['title', 'description']
     ordering_fields = ['start_date', 'title']
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        levels = get_portal_grade_levels(self.request.user)
-        if levels is None:
-            return qs
-        if not levels:
-            return qs.none()
-        return qs.filter(Q(grade_level__isnull=True) | Q(grade_level__in=levels))
-
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
         role = getattr(request.user, 'role', None)
@@ -567,9 +551,6 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
     search_fields = ['title', 'description', 'subject__name', 'subject__code']
     ordering_fields = ['created_at', 'grade_level', 'title']
 
-    def get_queryset(self):
-        return filter_queryset_for_portal(self.request.user, super().get_queryset())
-
     @action(detail=False, methods=['get'], url_path='subject-options')
     def subject_options(self, request):
         item_type = request.query_params.get('item_type')
@@ -583,20 +564,17 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
             grade_academic_items__item_type=item_type,
             grade_academic_items__is_deleted=False,
         )
-        levels = get_portal_grade_levels(request.user)
-        if levels is not None:
-            if not levels:
-                return Response([])
-            item_filter &= Q(grade_academic_items__grade_level__in=levels)
         subjects = Subject.objects.filter(is_deleted=False).annotate(
             item_count=Count(
                 'grade_academic_items',
                 filter=item_filter,
             ),
         ).order_by('name')
-        return Response([{
+        portal = get_portal_grade_levels(request.user) is not None
+        payload = [{
             'id': subject.id,
             'name': subject.name,
             'code': subject.code,
             'item_count': subject.item_count,
-        } for subject in subjects if subject.item_count > 0])
+        } for subject in subjects if subject.item_count > 0 or portal]
+        return Response(payload)

@@ -13,7 +13,6 @@ import { academicsSubApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { isReadOnlyModule, normalizeRole } from '../../utils/roles';
 import useModulePaths from '../../hooks/useModulePaths';
-import usePortalContext from '../../hooks/usePortalContext';
 import {
   createDayRow,
   defaultWeekStartMondayIso,
@@ -40,7 +39,6 @@ export default function ExaminationGradePage() {
   const grade = Number(gradeLevel);
   const { user } = useAuth();
   const { examinationListPath } = useModulePaths();
-  const { isPortal, gradeLevels } = usePortalContext();
   const readOnly = isReadOnlyModule(normalizeRole(user?.role), 'examination');
   const queryClient = useQueryClient();
   const scheduleQueryKey = ['examination', 'grade-schedule', grade];
@@ -148,7 +146,7 @@ export default function ExaminationGradePage() {
     },
   });
 
-  if (!grade || grade < 1 || grade > 8 || (isPortal && gradeLevels.length > 0 && !gradeLevels.includes(grade))) {
+  if (!grade || grade < 1 || grade > 8) {
     return <Navigate to={examinationListPath()} replace />;
   }
 

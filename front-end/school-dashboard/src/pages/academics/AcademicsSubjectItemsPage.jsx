@@ -21,7 +21,6 @@ import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethi
 import { useAuth } from '../../context/AuthContext';
 import { isPortalRole, isTeacherRole, normalizeRole } from '../../utils/roles';
 import useModulePaths from '../../hooks/useModulePaths';
-import usePortalContext from '../../hooks/usePortalContext';
 import {
   buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS, tabSingularLabel,
 } from './academicsConstants';
@@ -35,7 +34,6 @@ export default function AcademicsSubjectItemsPage() {
   const isTeacher = isTeacherRole(normalizeRole(user?.role));
   const isPortal = isPortalRole(normalizeRole(user?.role));
   const { academicsListPath, itemViewerPath } = useModulePaths();
-  const { primaryStudent } = usePortalContext();
   const tab = getTabBySlug(typeSlug);
   const subjectNumericId = Number(subjectId);
 
@@ -84,9 +82,7 @@ export default function AcademicsSubjectItemsPage() {
     item_type: tab?.key,
     subject: subjectNumericId,
     search: debouncedSearch || undefined,
-    grade_level: filterValues.grade_level
-      || (isPortal && primaryStudent?.grade_level ? String(primaryStudent.grade_level) : undefined)
-      || undefined,
+    grade_level: filterValues.grade_level || undefined,
     academic_year: hideAcademicYear ? undefined : (filterValues.academic_year || undefined),
   }), [
     queryParams,
@@ -95,8 +91,6 @@ export default function AcademicsSubjectItemsPage() {
     debouncedSearch,
     filterValues,
     hideAcademicYear,
-    isPortal,
-    primaryStudent?.grade_level,
   ]);
 
   const queryKey = ['academics', 'grade-items', tab?.key, subjectNumericId, listParams.grade_level];

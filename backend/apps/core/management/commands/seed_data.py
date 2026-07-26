@@ -4,7 +4,10 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.academics.models import AcademicYear, Term, Department, Subject, SchoolClass, Section, Room
+from apps.academics.models import (
+    AcademicYear, Term, Department, Subject, SchoolClass, Section, Room,
+    AnnualSchedule, GradeAcademicItem,
+)
 from apps.students.models import Student, Guardian, MedicalInfo
 from apps.teachers.models import Teacher, TeacherQualification, TeacherSalaryInfo, TeacherSalaryPayment
 from apps.website.models import SchoolInfo, BlogPost, Event, FAQ
@@ -402,6 +405,47 @@ class Command(BaseCommand):
                 'is_published': True,
             },
         )
+
+        for ec_year in AcademicYear.objects.filter(is_deleted=False, name__endswith=' E.C.'):
+            start = ec_year.start_date or date(2025, 9, 1)
+            AnnualSchedule.objects.get_or_create(
+                academic_year=ec_year,
+                title=f'{ec_year.name} School Opening',
+                defaults={
+                    'event_type': AnnualSchedule.EventType.EVENT,
+                    'start_date': start,
+                    'end_date': start,
+                    'grade_level': None,
+                    'description': 'Whole-school event visible to all students.',
+                    'created_by': admin_user,
+                    'updated_by': admin_user,
+                },
+            )
+
+        for subj in subjects:
+            GradeAcademicItem.objects.get_or_create(
+                subject=subj,
+                item_type=GradeAcademicItem.ItemType.MATERIAL,
+                title=f'{subj.name} — Grade 5 materials',
+                grade_level=5,
+                defaults={
+                    'description': 'Demo study material for the student portal.',
+                    'created_by': admin_user,
+                    'updated_by': admin_user,
+                },
+            )
+            GradeAcademicItem.objects.get_or_create(
+                subject=subj,
+                item_type=GradeAcademicItem.ItemType.ASSIGNMENT,
+                title=f'{subj.name} — Assignment 1',
+                grade_level=5,
+                defaults={
+                    'academic_year': academic_year,
+                    'description': 'Demo assignment for the student portal.',
+                    'created_by': admin_user,
+                    'updated_by': admin_user,
+                },
+            )
 
         self.stdout.write(self.style.SUCCESS('Demo data seeded successfully!'))
         self.stdout.write('')
