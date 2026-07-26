@@ -256,7 +256,7 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
                 day_num = int(item)
             except (TypeError, ValueError):
                 continue
-            if 1 <= day_num <= 7 and day_num not in scheduled_weekdays:
+            if 1 <= day_num <= 7:
                 scheduled_weekdays.append(day_num)
 
         week_start = None
@@ -332,8 +332,6 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
                 updated_by=user,
             )
             created.append(entry)
-            if day_of_week not in scheduled_weekdays:
-                scheduled_weekdays.append(day_of_week)
 
         if not created:
             return Response({'detail': 'Add at least one exam before saving.'}, status=400)

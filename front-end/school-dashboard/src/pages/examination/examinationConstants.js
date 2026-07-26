@@ -91,6 +91,66 @@ export function examDaySlotsFromEntries(entries) {
   return slots;
 }
 
+export function createDayRow(dayValue) {
+  return {
+    rowId: `day-row-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    dayValue: Number(dayValue),
+  };
+}
+
+export function hydrateExamScheduleFromServer(scheduledWeekdays, entries) {
+  const daySlots = examDaySlotsFromEntries(entries);
+  const rows = [];
+  const examsByRowId = {};
+  const scheduled = Array.isArray(scheduledWeekdays) ? scheduledWeekdays : [];
+
+  if (scheduled.length > 0) {
+    scheduled.forEach((d) => {
+      const dayValue = Number(d);
+      if (dayValue < 1 || dayValue > 7) return;
+      const row = createDayRow(dayValue);
+      rows.push(row);
+      examsByRowId[row.rowId] = [];
+    });
+    const assignedByDay = {};
+    rows.forEach((row) => {
+      const { dayValue, rowId } = row;
+      if (assignedByDay[dayValue]) return;
+      examsByRowId[rowId] = [...(daySlots[dayValue] || [])];
+      assignedByDay[dayValue] = true;
+    });
+  } else {
+    EXAM_WEEK_DAYS.forEach((day) => {
+      if (!(daySlots[day.value] || []).length) return;
+      const row = createDayRow(day.value);
+      rows.push(row);
+      examsByRowId[row.rowId] = [...daySlots[day.value]];
+    });
+  }
+
+  return { rows, examsByRowId };
+}
+
+export function flattenExamScheduleRows(dayRows, examsByRowId) {
+  const flat = [];
+  (dayRows || []).forEach((row) => {
+    (examsByRowId[row.rowId] || []).forEach((exam) => {
+      flat.push({
+        day_of_week: row.dayValue,
+        subject: Number(exam.subject),
+        start_time: exam.start_time,
+        end_time: exam.end_time,
+      });
+    });
+  });
+  return flat;
+}
+
+export function hasAnyExamInRows(examsByRowId) {
+  return Object.values(examsByRowId || {}).some((list) => list.length > 0);
+}
+
+/** @deprecated use hydrateExamScheduleFromServer */
 export function flattenExamDaySlots(daySlots, activeDays) {
   const flat = [];
   const days = activeDays?.length
