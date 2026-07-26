@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiGrid, FiUsers, FiUserCheck, FiBook, FiCalendar, FiClock, FiFileText,
   FiDollarSign, FiBookOpen, FiTruck, FiPackage, FiBriefcase, FiMessageSquare,
-  FiFolder, FiBarChart2, FiSettings, FiMenu, FiX,
+  FiFolder, FiBarChart2, FiSettings, FiMenu, FiX, FiLogOut,
 } from 'react-icons/fi';
 import { APP_NAME, MODULES } from '../utils/constants';
 import { canAccessModule, normalizeRole } from '../utils/roles';
 import { useAuth } from '../context/AuthContext';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
-import ThemeToggle from '../components/ui/ThemeToggle';
 import NotificationBell from '../components/ui/NotificationBell';
-import ProfileDropdown from '../components/ui/ProfileDropdown';
 import { getInitials } from '../utils/formatters';
 import { ROLE_LABELS } from '../utils/roles';
 
@@ -42,13 +40,19 @@ function getBreadcrumbs(pathname) {
 }
 
 export default function DashboardLayout() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const role = normalizeRole(user?.role);
   const visibleModules = MODULES.filter((m) => canAccessModule(role, m.key));
 
   const name = user?.full_name || user?.name || user?.email || 'Admin';
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-surface dark:bg-gray-950">
@@ -101,6 +105,14 @@ export default function DashboardLayout() {
               <p className="text-[10px] uppercase tracking-widest text-gray-500">{ROLE_LABELS[role] || role}</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-800/60 hover:text-white"
+          >
+            <FiLogOut className="shrink-0" />
+            Log out
+          </button>
         </div>
       </aside>
 
@@ -116,9 +128,7 @@ export default function DashboardLayout() {
             <Breadcrumbs items={getBreadcrumbs(location.pathname)} />
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <NotificationBell />
-            <ProfileDropdown />
           </div>
         </header>
 
