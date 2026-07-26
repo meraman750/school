@@ -2,11 +2,13 @@ from datetime import date, timedelta, time, datetime
 
 from django.db.models import Count, Prefetch, Q
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from apps.core.mixins import BaseModelViewSet
-from apps.core.permissions import IsStaffMember, IsTeacher
+from apps.core.permissions import IsStaffMember, IsTeacher, IsStaffMemberOrPortalReadOnly
+from apps.core.portal_scope import filter_queryset_for_portal, get_portal_grade_levels, portal_may_access_grade
 
 from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
@@ -57,7 +59,7 @@ class DepartmentViewSet(BaseModelViewSet):
 class SubjectViewSet(BaseModelViewSet):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
-    permission_classes = [IsStaffMember]
+    permission_classes = [IsStaffMemberOrPortalReadOnly]
     filterset_fields = ['department']
     search_fields = ['name', 'code']
 
@@ -65,7 +67,7 @@ class SubjectViewSet(BaseModelViewSet):
 class SchoolClassViewSet(BaseModelViewSet):
     queryset = SchoolClass.objects.all()
     serializer_class = SchoolClassSerializer
-    permission_classes = [IsStaffMember]
+    permission_classes = [IsStaffMemberOrPortalReadOnly]
     filterset_fields = ['academic_year', 'grade_level', 'class_teacher']
     search_fields = ['name']
 
@@ -80,6 +82,8 @@ class SchoolClassViewSet(BaseModelViewSet):
             return Response({'detail': 'Invalid grade_level.'}, status=400)
         if grade_level < 1 or grade_level > 8:
             return Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+        if not portal_may_access_grade(request.user, grade_level):
+            return Response({'detail': 'You may only access your enrolled grade.'}, status=403)
 
         academic_year = AcademicYear.objects.filter(is_current=True).first()
         if not academic_year:
@@ -125,7 +129,7 @@ class SchoolClassViewSet(BaseModelViewSet):
 class SectionViewSet(BaseModelViewSet):
     queryset = Section.objects.select_related('school_class').all()
     serializer_class = SectionSerializer
-    permission_classes = [IsStaffMember]
+    permission_classes = [IsStaffMemberOrPortalReadOnly]
     filterset_fields = ['school_class']
 
 
@@ -177,9 +181,12 @@ class ExamScheduleViewSet(BaseModelViewSet):
 class GradeExamScheduleEntryViewSet(BaseModelViewSet):
     queryset = GradeExamScheduleEntry.objects.select_related('subject').filter(is_deleted=False)
     serializer_class = GradeExamScheduleEntrySerializer
-    permission_classes = [IsStaffMember]
+    permission_classes = [IsStaffMemberOrPortalReadOnly]
     filterset_fields = ['grade_level', 'subject', 'exam_date']
     ordering_fields = ['exam_date', 'start_time', 'schedule_slot_index']
+
+    def get_queryset(self):
+        return filter_queryset_for_portal(self.request.user, super().get_queryset())
 
     def _parse_grade_level(self, request):
         grade_level = request.query_params.get('grade_level')
@@ -200,6 +207,8 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
         grade_level, err = self._parse_grade_level(request)
         if err:
             return err
+        if not portal_may_access_grade(request.user, grade_level):
+            return Response({'detail': 'You may only access your enrolled grade.'}, status=403)
         user = request.user
         if request.method == 'GET':
             plan, _ = GradeExamSchedulePlan.objects.get_or_create(
@@ -394,13 +403,14 @@ class TimetableViewSet(BaseModelViewSet):
         'school_class', 'section', 'subject', 'teacher', 'room',
     ).all()
     serializer_class = TimetableSerializer
-    permission_classes = [IsStaffMember]
+    permission_classes = [IsStaffMemberOrPortalReadOnly]
     filterset_fields = ['school_class', 'section', 'subject', 'teacher', 'day_of_week', 'period_number']
     ordering_fields = ['day_of_week', 'period_number', 'start_time']
 
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
-        if getattr(request.user, 'role', None) == 'TEACHER' and request.method not in ('GET', 'HEAD', 'OPTIONS'):
+        role = getattr(request.user, 'role', None)
+        if role in ('TEACHER', 'STUDENT', 'PARENT') and request.method not in ('GET', 'HEAD', 'OPTIONS'):
             raise MethodNotAllowed(
                 request.method,
                 detail='Teachers have view-only access to class timetables.',
@@ -489,15 +499,25 @@ class AnnualScheduleViewSet(BaseModelViewSet):
         ),
     )
     serializer_class = AnnualScheduleSerializer
-    permission_classes = [IsStaffMember]
+    permission_classes = [IsStaffMemberOrPortalReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filterset_fields = ['academic_year', 'event_type', 'grade_level']
     search_fields = ['title', 'description']
     ordering_fields = ['start_date', 'title']
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        levels = get_portal_grade_levels(self.request.user)
+        if levels is None:
+            return qs
+        if not levels:
+            return qs.none()
+        return qs.filter(Q(grade_level__isnull=True) | Q(grade_level__in=levels))
+
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
-        if getattr(request.user, 'role', None) == 'TEACHER' and request.method not in ('GET', 'HEAD', 'OPTIONS'):
+        role = getattr(request.user, 'role', None)
+        if role in ('TEACHER', 'STUDENT', 'PARENT') and request.method not in ('GET', 'HEAD', 'OPTIONS'):
             raise MethodNotAllowed(
                 request.method,
                 detail='Teachers have view-only access to the annual schedule.',
@@ -541,11 +561,14 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
         ),
     )
     serializer_class = GradeAcademicItemSerializer
-    permission_classes = [IsStaffMember]
+    permission_classes = [IsStaffMemberOrPortalReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filterset_fields = ['item_type', 'grade_level', 'academic_year', 'subject']
     search_fields = ['title', 'description', 'subject__name', 'subject__code']
     ordering_fields = ['created_at', 'grade_level', 'title']
+
+    def get_queryset(self):
+        return filter_queryset_for_portal(self.request.user, super().get_queryset())
 
     @action(detail=False, methods=['get'], url_path='subject-options')
     def subject_options(self, request):
@@ -556,13 +579,19 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
                 {'detail': 'item_type is required (ASSIGNMENT, MID_EXAM, FINAL_EXAM, or MATERIAL).'},
                 status=400,
             )
+        item_filter = Q(
+            grade_academic_items__item_type=item_type,
+            grade_academic_items__is_deleted=False,
+        )
+        levels = get_portal_grade_levels(request.user)
+        if levels is not None:
+            if not levels:
+                return Response([])
+            item_filter &= Q(grade_academic_items__grade_level__in=levels)
         subjects = Subject.objects.filter(is_deleted=False).annotate(
             item_count=Count(
                 'grade_academic_items',
-                filter=Q(
-                    grade_academic_items__item_type=item_type,
-                    grade_academic_items__is_deleted=False,
-                ),
+                filter=item_filter,
             ),
         ).order_by('name')
         return Response([{
@@ -570,4 +599,4 @@ class GradeAcademicItemViewSet(BaseModelViewSet):
             'name': subject.name,
             'code': subject.code,
             'item_count': subject.item_count,
-        } for subject in subjects])
+        } for subject in subjects if subject.item_count > 0])

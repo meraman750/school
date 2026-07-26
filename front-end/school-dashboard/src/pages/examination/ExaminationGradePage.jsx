@@ -10,6 +10,10 @@ import Modal from '../../components/ui/Modal';
 import Select from '../../components/ui/Select';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { isReadOnlyModule, normalizeRole } from '../../utils/roles';
+import useModulePaths from '../../hooks/useModulePaths';
+import usePortalContext from '../../hooks/usePortalContext';
 import {
   createDayRow,
   defaultWeekStartMondayIso,
@@ -34,6 +38,10 @@ function newLocalExam(subjectOptions) {
 export default function ExaminationGradePage() {
   const { gradeLevel } = useParams();
   const grade = Number(gradeLevel);
+  const { user } = useAuth();
+  const { examinationListPath } = useModulePaths();
+  const { isPortal, gradeLevels } = usePortalContext();
+  const readOnly = isReadOnlyModule(normalizeRole(user?.role), 'examination');
   const queryClient = useQueryClient();
   const scheduleQueryKey = ['examination', 'grade-schedule', grade];
   const planQueryKey = ['examination', 'grade-plan', grade];
@@ -42,7 +50,7 @@ export default function ExaminationGradePage() {
   const [examsByRowId, setExamsByRowId] = useState({});
   const [daysDirty, setDaysDirty] = useState(false);
   const [title, setTitle] = useState('');
-  const [isEditing, setIsEditing] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const [hasSavedOnce, setHasSavedOnce] = useState(false);
 
   const [pickDayValue, setPickDayValue] = useState('1');
@@ -75,7 +83,9 @@ export default function ExaminationGradePage() {
   } = useQuery({
     queryKey: scheduleQueryKey,
     queryFn: async () => {
-      await academicsSubApi.gradeExamSchedules.ensureGradeSample(grade);
+      if (!readOnly) {
+        await academicsSubApi.gradeExamSchedules.ensureGradeSample(grade);
+      }
       const list = await academicsSubApi.gradeExamSchedules.list({
         grade_level: grade,
         page_size: 100,
@@ -93,8 +103,8 @@ export default function ExaminationGradePage() {
     setExamsByRowId(hydrated.examsByRowId);
     const hasExams = hasAnyExamInRows(hydrated.examsByRowId);
     setHasSavedOnce(hasExams);
-    setIsEditing(!hasExams);
-  }, [schedule, plan?.scheduled_weekdays, daysDirty]);
+    setIsEditing(!readOnly && !hasExams);
+  }, [schedule, plan?.scheduled_weekdays, daysDirty, readOnly]);
 
   useEffect(() => {
     if (!plan) return;
@@ -138,8 +148,8 @@ export default function ExaminationGradePage() {
     },
   });
 
-  if (!grade || grade < 1 || grade > 8) {
-    return <Navigate to="/examination" replace />;
+  if (!grade || grade < 1 || grade > 8 || (isPortal && gradeLevels.length > 0 && !gradeLevels.includes(grade))) {
+    return <Navigate to={examinationListPath()} replace />;
   }
 
   const subjectLabel = (subjectId) =>
@@ -243,7 +253,7 @@ export default function ExaminationGradePage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Link
-            to="/examination"
+            to={examinationListPath()}
             className="mt-1 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <FiArrowLeft />
@@ -271,12 +281,12 @@ export default function ExaminationGradePage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {hasSavedOnce && !isEditing && (
+          {!readOnly && hasSavedOnce && !isEditing && (
             <Button type="button" size="sm" variant="secondary" onClick={() => setIsEditing(true)}>
               <FiEdit2 /> Edit schedule
             </Button>
           )}
-          {isEditing && (
+          {!readOnly && isEditing && (
             <Button type="button" size="sm" onClick={() => saveMutation.mutate()} loading={saveMutation.isPending}>
               <FiSave /> Save schedule
             </Button>
@@ -284,7 +294,7 @@ export default function ExaminationGradePage() {
         </div>
       </div>
 
-      {isEditing && (
+      {!readOnly && isEditing && (
         <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="min-w-[200px] flex-1 max-w-xs">
             <Select

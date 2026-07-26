@@ -17,6 +17,9 @@ import {
   useCreateMutation, useDeleteMutation, useListQuery, useUpdateMutation,
 } from '../../hooks/useApi';
 import { academicsSubApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import useModulePaths from '../../hooks/useModulePaths';
+import { isReadOnlyModule, normalizeRole } from '../../utils/roles';
 import {
   buildAnnualEventFormData, EVENT_TYPE_OPTIONS, GRADE_FORM_OPTIONS,
 } from './timetableConstants';
@@ -187,6 +190,9 @@ function AnnualEventModal({
 export default function AnnualScheduleYearPage() {
   const { yearId } = useParams();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { timetableListPath } = useModulePaths();
+  const readOnly = isReadOnlyModule(normalizeRole(user?.role), 'timetable');
   const numericYearId = Number(yearId);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -237,7 +243,7 @@ export default function AnnualScheduleYearPage() {
   });
 
   if (!numericYearId) {
-    return <Navigate to="/timetable" replace />;
+    return <Navigate to={timetableListPath()} replace />;
   }
 
   const handleSubmit = (formValues, files) => {
@@ -258,7 +264,7 @@ export default function AnnualScheduleYearPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Link
-            to="/timetable"
+            to={timetableListPath()}
             className="mt-1 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <FiArrowLeft />
@@ -269,9 +275,11 @@ export default function AnnualScheduleYearPage() {
             <p className="text-xs text-gray-500">Events and calendar items for this year</p>
           </div>
         </div>
-        <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
-          <FiPlus /> Add Event
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
+            <FiPlus /> Add Event
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -283,9 +291,9 @@ export default function AnnualScheduleYearPage() {
           {events.length === 0 && (
             <EmptyState
               title="No events yet"
-              description={`Add the first event for ${yearName}.`}
-              actionLabel="Add Event"
-              onAction={() => { setEditing(null); setModalOpen(true); }}
+              description={`No events for ${yearName}.`}
+              actionLabel={readOnly ? undefined : 'Add Event'}
+              onAction={readOnly ? undefined : () => { setEditing(null); setModalOpen(true); }}
             />
           )}
           <AnnualScheduleTimeline
@@ -300,10 +308,12 @@ export default function AnnualScheduleYearPage() {
         event={detailEvent}
         isOpen={Boolean(detailEvent)}
         onClose={() => setDetailEvent(null)}
-        onEdit={(ev) => { setEditing(ev); setModalOpen(true); }}
-        onDelete={(ev) => setDeleteTarget(ev)}
+        onEdit={readOnly ? undefined : (ev) => { setEditing(ev); setModalOpen(true); }}
+        onDelete={readOnly ? undefined : (ev) => setDeleteTarget(ev)}
       />
 
+      {!readOnly && (
+      <>
       <AnnualEventModal
         isOpen={modalOpen}
         onClose={() => { setModalOpen(false); setEditing(null); }}
@@ -322,6 +332,8 @@ export default function AnnualScheduleYearPage() {
         message={`Delete "${deleteTarget?.title}"? This cannot be undone.`}
         loading={deleteMutation.isPending}
       />
+      </>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import CrudModulePage from '../../components/shared/CrudModulePage';
 import { libraryApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { isAdminRole, isTeacherRole, normalizeRole } from '../../utils/roles';
+import { isAdminRole, isPortalRole, isTeacherRole, normalizeRole } from '../../utils/roles';
 
 const columns = [
   { key: 'title', header: 'Book', render: (r) => <span className="font-semibold text-gray-900 dark:text-gray-100">{r.title || r.name || '—'}</span> },
@@ -52,7 +52,8 @@ function preparePayload(formData, editing) {
 export default function LibraryPage() {
   const { user } = useAuth();
   const role = normalizeRole(user?.role);
-  const canManage = isAdminRole(role) || isTeacherRole(role) || role === 'LIBRARIAN';
+  const canManage = !isPortalRole(role)
+    && (isAdminRole(role) || isTeacherRole(role) || role === 'LIBRARIAN');
 
   return (
     <CrudModulePage

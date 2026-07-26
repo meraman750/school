@@ -8,10 +8,10 @@ import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { isReadOnlyModule, isTeacherRole, normalizeRole } from '../../utils/roles';
+import useModulePaths from '../../hooks/useModulePaths';
+import usePortalContext from '../../hooks/usePortalContext';
 import {
   GRADE_LEVELS,
-  annualScheduleYearPath,
-  classTimetableGradePath,
 } from './timetableConstants';
 
 const TABS = [
@@ -22,6 +22,7 @@ const TABS = [
 
 function AnnualYearListTab() {
   const { user } = useAuth();
+  const { timetableAnnualPath } = useModulePaths();
   const readOnly = isReadOnlyModule(normalizeRole(user?.role), 'timetable');
   const { data: years = [], isLoading, isError } = useQuery({
     queryKey: ['annual-schedule', 'year-options'],
@@ -52,7 +53,7 @@ function AnnualYearListTab() {
         <ul className="flex flex-col gap-3">
           {sortedYears.map((year) => (
             <li key={year.id}>
-              <Link to={annualScheduleYearPath(year.id)} className="block">
+              <Link to={timetableAnnualPath(year.id)} className="block">
                 <Card padding className="group transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -77,23 +78,40 @@ function AnnualYearListTab() {
 
 function ClassGradeListTab() {
   const { user } = useAuth();
+  const { timetableGradePath } = useModulePaths();
+  const { isPortal, gradeLevels, primaryStudent, isLoading } = usePortalContext();
   const isTeacher = isTeacherRole(normalizeRole(user?.role));
-  const grades = GRADE_LEVELS;
+  const grades = isPortal && gradeLevels.length > 0 ? gradeLevels : GRADE_LEVELS;
+
+  if (isPortal && isLoading) {
+    return <p className="text-xs text-gray-500">Loading your class…</p>;
+  }
+
+  if (isPortal && gradeLevels.length === 0) {
+    return (
+      <EmptyState
+        title="No grade linked"
+        description="Your profile must include a grade to open the class timetable."
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">Class Timetable — Grades</h3>
         <p className="text-xs text-gray-500">
-          {isTeacher
-            ? 'View weekly schedules for all grades (read-only)'
-            : 'Choose a grade, then section A, B, or C to manage the weekly schedule'}
+          {isPortal && primaryStudent
+            ? `Grade ${primaryStudent.grade_level} · Section ${primaryStudent.section || '—'}`
+            : isTeacher
+              ? 'View weekly schedules for all grades (read-only)'
+              : 'Choose a grade, then section A, B, or C to manage the weekly schedule'}
         </p>
       </div>
       <ul className="flex flex-col gap-3">
         {grades.map((grade) => (
           <li key={grade}>
-            <Link to={classTimetableGradePath(grade)} className="block">
+            <Link to={timetableGradePath(grade)} className="block">
               <Card padding className="group transition-shadow hover:shadow-md">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-base font-bold text-gray-900 group-hover:text-primary dark:text-white">

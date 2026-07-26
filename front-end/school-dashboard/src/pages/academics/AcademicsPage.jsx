@@ -6,10 +6,12 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
-import { ACADEMIC_TABS, subjectItemsPath } from './academicsConstants';
+import { ACADEMIC_TABS } from './academicsConstants';
+import useModulePaths from '../../hooks/useModulePaths';
 
 export default function AcademicsPage() {
   const [activeTab, setActiveTab] = useState('ASSIGNMENT');
+  const { subjectItemsPath } = useModulePaths();
   const tabMeta = ACADEMIC_TABS.find((t) => t.key === activeTab);
 
   const { data: subjects = [], isLoading, isError } = useQuery({

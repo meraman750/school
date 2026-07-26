@@ -10,10 +10,12 @@ import Modal from '../../components/ui/Modal';
 import Select from '../../components/ui/Select';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { isReadOnlyModule, normalizeRole } from '../../utils/roles';
+import useModulePaths from '../../hooks/useModulePaths';
 import {
   CLASS_TIMETABLE_DAYS,
   PERIOD_NUMBERS,
-  classTimetableGradePath,
 } from './timetableConstants';
 
 function slotKey(day, period) {
@@ -48,9 +50,11 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
   const grade = Number(gradeLevel);
   const sectionNumericId = Number(sectionId);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const readOnly = isReadOnlyModule(normalizeRole(user?.role), 'timetable');
 
   const [grid, setGrid] = useState(buildEmptyGrid);
-  const [isEditing, setIsEditing] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const [hasSavedOnce, setHasSavedOnce] = useState(false);
   const [addSubjectOpen, setAddSubjectOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState('');
@@ -76,7 +80,8 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
   });
 
   const navigate = useNavigate();
-  const sectionsListPath = classTimetableGradePath(grade);
+  const { timetableGradePath } = useModulePaths();
+  const sectionsListPath = timetableGradePath(grade);
 
   const { data: subjectsData } = useQuery({
     queryKey: ['subjects', 'timetable'],
@@ -93,8 +98,8 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
     setGrid(next);
     const filled = hasAnySlot(next);
     setHasSavedOnce(filled);
-    setIsEditing(!filled);
-  }, [rows]);
+    setIsEditing(!readOnly && !filled);
+  }, [rows, readOnly]);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -192,12 +197,12 @@ export default function ClassSectionTimetablePage({ gradeLevel, sectionId }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {hasSavedOnce && !isEditing && (
+          {!readOnly && hasSavedOnce && !isEditing && (
             <Button size="sm" variant="secondary" onClick={() => setIsEditing(true)}>
               <FiEdit2 /> Edit timetable
             </Button>
           )}
-          {isEditing && (
+          {!readOnly && isEditing && (
             <>
               <Button size="sm" variant="ghost" onClick={() => setAddSubjectOpen(true)}>
                 <FiPlus /> New subject

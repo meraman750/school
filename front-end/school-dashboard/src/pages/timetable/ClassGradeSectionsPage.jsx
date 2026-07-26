@@ -5,7 +5,8 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
-import { classTimetableGradePath, classTimetableListPath, classTimetableSectionPath } from './timetableConstants';
+import useModulePaths from '../../hooks/useModulePaths';
+import usePortalContext from '../../hooks/usePortalContext';
 import { useAuth } from '../../context/AuthContext';
 import { isTeacherRole, normalizeRole } from '../../utils/roles';
 
@@ -14,6 +15,8 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isTeacher = isTeacherRole(normalizeRole(user?.role));
+  const { timetableListPath, timetableSectionPath } = useModulePaths();
+  const { isPortal, primaryStudent } = usePortalContext();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timetable', 'grade-sections', grade],
@@ -21,7 +24,11 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
     enabled: grade >= 1 && grade <= 8,
   });
 
-  const sections = data?.sections || [];
+  let sections = data?.sections || [];
+  if (isPortal && primaryStudent?.section) {
+    const mine = String(primaryStudent.section).trim().toUpperCase();
+    sections = sections.filter((s) => String(s.name).trim().toUpperCase() === mine);
+  }
 
   if (!grade || grade < 1 || grade > 8) {
     return (
@@ -34,7 +41,7 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
       <div className="flex items-start gap-4">
         <button
           type="button"
-          onClick={() => navigate(classTimetableListPath())}
+          onClick={() => navigate(timetableListPath('class'))}
           className="mt-1 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
           aria-label="Back to grade list"
         >
@@ -57,7 +64,7 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
         <ul className="flex flex-col gap-3">
           {sections.map((section) => (
             <li key={section.id}>
-              <Link to={classTimetableSectionPath(grade, section.id)} className="block">
+              <Link to={timetableSectionPath(grade, section.id)} className="block">
                 <Card padding className="group transition-shadow hover:shadow-md">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -79,7 +86,7 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
 
       <button
         type="button"
-        onClick={() => navigate(classTimetableListPath())}
+        onClick={() => navigate(timetableListPath('class'))}
         className="text-xs font-semibold text-primary hover:underline"
       >
         ← Back to all grades

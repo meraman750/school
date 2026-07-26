@@ -19,9 +19,11 @@ import { academicsSubApi } from '../../services/api';
 import { formatDate, normalizeListResponse } from '../../utils/formatters';
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
 import { useAuth } from '../../context/AuthContext';
-import { isTeacherRole, normalizeRole } from '../../utils/roles';
+import { isPortalRole, isTeacherRole, normalizeRole } from '../../utils/roles';
+import useModulePaths from '../../hooks/useModulePaths';
+import usePortalContext from '../../hooks/usePortalContext';
 import {
-  buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS, itemViewerPath, tabSingularLabel,
+  buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS, tabSingularLabel,
 } from './academicsConstants';
 import GradeItemFormModal from './GradeItemFormModal';
 
@@ -31,6 +33,9 @@ export default function AcademicsSubjectItemsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isTeacher = isTeacherRole(normalizeRole(user?.role));
+  const isPortal = isPortalRole(normalizeRole(user?.role));
+  const { academicsListPath, itemViewerPath } = useModulePaths();
+  const { primaryStudent } = usePortalContext();
   const tab = getTabBySlug(typeSlug);
   const subjectNumericId = Number(subjectId);
 
@@ -72,24 +77,34 @@ export default function AcademicsSubjectItemsPage() {
     return match?.value || yearOptions[0]?.value || '';
   }, [yearOptions]);
 
-  if (!tab || !subjectNumericId) {
-    return <Navigate to="/academics" replace />;
-  }
+  const validRoute = Boolean(tab && subjectNumericId);
 
-  const listParams = {
+  const listParams = useMemo(() => ({
     ...queryParams,
-    item_type: tab.key,
+    item_type: tab?.key,
     subject: subjectNumericId,
     search: debouncedSearch || undefined,
-    grade_level: filterValues.grade_level || undefined,
+    grade_level: filterValues.grade_level
+      || (isPortal && primaryStudent?.grade_level ? String(primaryStudent.grade_level) : undefined)
+      || undefined,
     academic_year: hideAcademicYear ? undefined : (filterValues.academic_year || undefined),
-  };
+  }), [
+    queryParams,
+    tab?.key,
+    subjectNumericId,
+    debouncedSearch,
+    filterValues,
+    hideAcademicYear,
+    isPortal,
+    primaryStudent?.grade_level,
+  ]);
 
-  const queryKey = ['academics', 'grade-items', tab.key, subjectNumericId];
+  const queryKey = ['academics', 'grade-items', tab?.key, subjectNumericId, listParams.grade_level];
   const { data, isLoading, isError } = useListQuery(
     queryKey,
     academicsSubApi.gradeItems.list,
     listParams,
+    { enabled: validRoute },
   );
 
   const refreshSubjectCounts = () => {
@@ -185,7 +200,7 @@ export default function AcademicsSubjectItemsPage() {
         ),
       },
     );
-    if (!isTeacher) {
+    if (!isTeacher && !isPortal) {
       base.push({
         key: 'actions',
         header: 'Actions',
@@ -211,15 +226,19 @@ export default function AcademicsSubjectItemsPage() {
       });
     }
     return base;
-  }, [isTeacher, subjectNumericId, tab]);
+  }, [isTeacher, isPortal, subjectNumericId, tab, itemViewerPath]);
 
   const subjectTitle = subject?.name || 'Subject';
+
+  if (!validRoute) {
+    return <Navigate to={academicsListPath()} replace />;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start gap-4">
         <Link
-          to="/academics"
+          to={academicsListPath()}
           className="mt-1 rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           <FiArrowLeft />
@@ -238,9 +257,11 @@ export default function AcademicsSubjectItemsPage() {
         <p className="text-xs text-gray-500">
           {hideAcademicYear ? 'Filter by grade' : 'Filter by grade or academic year'}
         </p>
-        <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
-          <FiPlus /> Add {singular}
-        </Button>
+        {!isPortal && (
+          <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }}>
+            <FiPlus /> Add {singular}
+          </Button>
+        )}
       </div>
 
       <SearchBar
@@ -271,8 +292,8 @@ export default function AcademicsSubjectItemsPage() {
         <EmptyState
           title={`No ${tab.label.toLowerCase()} for ${subjectTitle}`}
           description="Add the first item for this subject."
-          actionLabel={`Add ${singular}`}
-          onAction={() => { setEditing(null); setModalOpen(true); }}
+          actionLabel={isPortal ? undefined : `Add ${singular}`}
+          onAction={isPortal ? undefined : () => { setEditing(null); setModalOpen(true); }}
         />
       ) : (
         <>

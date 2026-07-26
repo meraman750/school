@@ -7,10 +7,12 @@ import InlineAttachmentViewer from '../../components/academics/InlineAttachmentV
 import { useDetailQuery } from '../../hooks/useApi';
 import { academicsSubApi } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
-import { getTabBySlug, subjectItemsPath } from './academicsConstants';
+import useModulePaths from '../../hooks/useModulePaths';
+import { getTabBySlug } from './academicsConstants';
 
 export default function AcademicsItemViewerPage() {
   const { typeSlug, subjectId, itemId } = useParams();
+  const { academicsListPath, subjectItemsPath } = useModulePaths();
   const tab = getTabBySlug(typeSlug);
   const numericItemId = Number(itemId);
   const numericSubjectId = Number(subjectId);
@@ -22,7 +24,7 @@ export default function AcademicsItemViewerPage() {
   );
 
   if (!tab || !numericItemId || !numericSubjectId) {
-    return <Navigate to="/academics" replace />;
+    return <Navigate to={academicsListPath()} replace />;
   }
 
   const backPath = subjectItemsPath(tab, numericSubjectId);
