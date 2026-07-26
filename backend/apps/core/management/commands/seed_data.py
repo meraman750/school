@@ -6,38 +6,53 @@ from django.utils import timezone
 
 from apps.academics.models import AcademicYear, Term, Department, Subject, SchoolClass, Section, Room
 from apps.students.models import Student, Guardian, MedicalInfo
-from apps.teachers.models import Teacher, TeacherQualification, TeacherSalaryInfo
+from apps.teachers.models import Teacher, TeacherQualification, TeacherSalaryInfo, TeacherSalaryPayment
 from apps.website.models import SchoolInfo, BlogPost, Event, FAQ
 from apps.settings_app.models import SchoolProfile, AcademicSettings, GradingSettings
 from apps.library.models import BookCategory, Book
+from apps.finance.models import FeeStructure, Invoice, Payment
 
 User = get_user_model()
+
+DEMO_PASSWORDS = {
+    'admin@birukacademy.edu': 'Admin@123',
+    'teacher@birukacademy.edu': 'Teacher@123',
+    'student@birukacademy.edu': 'Student@123',
+    'finance@birukacademy.edu': 'Finance@123',
+}
 
 
 class Command(BaseCommand):
     help = 'Seed demo data for Biruk Academy Primary School'
 
+    def _upsert_demo_user(self, email, password, **defaults):
+        username = defaults.pop('username', email.split('@')[0])
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={'username': username, **defaults},
+        )
+        for key, value in defaults.items():
+            setattr(user, key, value)
+        user.set_password(password)
+        user.save()
+        action = 'Created' if created else 'Updated'
+        self.stdout.write(self.style.SUCCESS(f'{action} demo user: {email} / {password}'))
+        return user
+
     def handle(self, *args, **options):
         self.stdout.write('Seeding Biruk Academy demo data...')
 
-        admin_user, created = User.objects.get_or_create(
-            email='admin@birukacademy.edu',
-            defaults={
-                'username': 'admin',
-                'first_name': 'System',
-                'last_name': 'Administrator',
-                'role': User.Role.SUPER_ADMIN,
-                'is_staff': True,
-                'is_superuser': True,
-                'is_verified': True,
-            },
+        admin_user = self._upsert_demo_user(
+            'admin@birukacademy.edu',
+            DEMO_PASSWORDS['admin@birukacademy.edu'],
+            username='admin',
+            first_name='System',
+            last_name='Administrator',
+            role=User.Role.SUPER_ADMIN,
+            is_staff=True,
+            is_superuser=True,
+            is_verified=True,
         )
-        if created:
-            admin_user.set_password('Admin@123')
-            admin_user.save()
-            self.stdout.write(self.style.SUCCESS('Created admin user: admin@birukacademy.edu / Admin@123'))
-        else:
-            self.stdout.write('Admin user already exists.')
 
         academic_year, _ = AcademicYear.objects.get_or_create(
             name='2018 E.C.',
@@ -99,19 +114,15 @@ class Command(BaseCommand):
             defaults={'building': 'Main Block', 'floor': '1', 'capacity': 40, 'room_type': 'Classroom'},
         )
 
-        teacher_user, _ = User.objects.get_or_create(
-            email='teacher@birukacademy.edu',
-            defaults={
-                'username': 'teacher1',
-                'first_name': 'Abebe',
-                'last_name': 'Kebede',
-                'role': User.Role.TEACHER,
-                'is_verified': True,
-            },
+        teacher_user = self._upsert_demo_user(
+            'teacher@birukacademy.edu',
+            DEMO_PASSWORDS['teacher@birukacademy.edu'],
+            username='teacher1',
+            first_name='Abebe',
+            last_name='Kebede',
+            role=User.Role.TEACHER,
+            is_verified=True,
         )
-        if _:
-            teacher_user.set_password('Teacher@123')
-            teacher_user.save()
 
         teacher, _ = Teacher.objects.get_or_create(
             employee_id='TCH001',
@@ -128,10 +139,9 @@ class Command(BaseCommand):
                 'years_of_experience': 7,
             },
         )
-
-        if school_class.class_teacher is None:
-            school_class.class_teacher = teacher
-            school_class.save()
+        if teacher.user_id != teacher_user.id:
+            teacher.user = teacher_user
+            teacher.save(update_fields=['user'])
 
         TeacherQualification.objects.get_or_create(
             teacher=teacher,
@@ -165,6 +175,7 @@ class Command(BaseCommand):
             ('STU005', 'Yonas', 'Bekele', 'M', date(2014, 7, 18)),
         ]
 
+        demo_student = None
         for adm_num, first, last, gender, dob in students_data:
             student, created = Student.objects.get_or_create(
                 admission_number=adm_num,
@@ -178,8 +189,16 @@ class Command(BaseCommand):
                     'email': f'{first.lower()}@student.birukacademy.edu',
                     'city': 'Addis Ababa',
                     'region': 'Addis Ababa',
+                    'grade_level': 5,
+                    'section': 'A',
                 },
             )
+            if not created and (student.grade_level != 5 or student.section != 'A'):
+                student.grade_level = 5
+                student.section = 'A'
+                student.save(update_fields=['grade_level', 'section'])
+            if adm_num == 'STU001':
+                demo_student = student
             if created:
                 Guardian.objects.get_or_create(
                     student=student,
@@ -195,6 +214,94 @@ class Command(BaseCommand):
                     student=student,
                     defaults={'allergies': 'None'},
                 )
+
+        if demo_student:
+            student_user = self._upsert_demo_user(
+                'student@birukacademy.edu',
+                DEMO_PASSWORDS['student@birukacademy.edu'],
+                username='student1',
+                first_name=demo_student.first_name,
+                last_name=demo_student.last_name,
+                role=User.Role.STUDENT,
+                is_verified=True,
+            )
+            if demo_student.user_id != student_user.id:
+                demo_student.user = student_user
+                demo_student.save(update_fields=['user'])
+
+        User.objects.filter(email='parent@birukacademy.edu').delete()
+
+        self._upsert_demo_user(
+            'finance@birukacademy.edu',
+            DEMO_PASSWORDS['finance@birukacademy.edu'],
+            username='finance1',
+            first_name='Meron',
+            last_name='Assefa',
+            role=User.Role.FINANCE,
+            is_verified=True,
+        )
+
+        fee_structure, _ = FeeStructure.objects.get_or_create(
+            name='Grade 5 Monthly Tuition',
+            academic_year=academic_year,
+            school_class=school_class,
+            defaults={
+                'tuition_fee': 2500,
+                'registration_fee': 500,
+                'is_active': True,
+            },
+        )
+
+        year = timezone.now().year
+        for idx, student in enumerate(Student.objects.filter(admission_number__in=[s[0] for s in students_data])):
+            for month in range(1, 8):
+                inv_num = f'INV-{student.admission_number}-{year}-{month:02d}'
+                paid = month <= 6 or idx % 2 == 0
+                status = Invoice.Status.PAID if paid else Invoice.Status.PENDING
+                issue = date(year, month, 5)
+                invoice, _ = Invoice.objects.get_or_create(
+                    invoice_number=inv_num,
+                    defaults={
+                        'student': student,
+                        'fee_structure': fee_structure,
+                        'issue_date': issue,
+                        'due_date': issue + timedelta(days=14),
+                        'total_amount': 2500,
+                        'amount_paid': 2500 if paid else 0,
+                        'status': status,
+                    },
+                )
+                if paid and not invoice.payments.filter(status=Payment.Status.COMPLETED).exists():
+                    Payment.objects.get_or_create(
+                        payment_reference=f'PAY-{inv_num}',
+                        defaults={
+                            'invoice': invoice,
+                            'amount': 2500,
+                            'payment_method': Payment.Method.CASH,
+                            'payment_date': timezone.make_aware(datetime.combine(issue, time.min)),
+                            'status': Payment.Status.COMPLETED,
+                        },
+                    )
+
+        for month in range(1, 7):
+            period_start = date(year, month, 1)
+            if month == 12:
+                period_end = date(year, 12, 31)
+            else:
+                period_end = date(year, month + 1, 1) - timedelta(days=1)
+            TeacherSalaryPayment.objects.get_or_create(
+                teacher=teacher,
+                pay_period_start=period_start,
+                defaults={
+                    'pay_period_end': period_end,
+                    'basic_salary': 15000,
+                    'allowances': 4500,
+                    'deductions': 1950,
+                    'net_salary': 17550,
+                    'status': TeacherSalaryPayment.Status.PAID,
+                    'payment_date': period_start,
+                },
+            )
 
         SchoolInfo.objects.get_or_create(
             name='Biruk Academy Primary School',
@@ -295,3 +402,7 @@ class Command(BaseCommand):
         )
 
         self.stdout.write(self.style.SUCCESS('Demo data seeded successfully!'))
+        self.stdout.write('')
+        self.stdout.write('Demo login accounts (passwords reset on each seed run):')
+        for email, password in DEMO_PASSWORDS.items():
+            self.stdout.write(f'  - {email} / {password}')

@@ -16,8 +16,10 @@ import {
   useCreateMutation, useDeleteMutation, useListQuery, useUpdateMutation,
 } from '../../hooks/useApi';
 import { academicsSubApi } from '../../services/api';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, normalizeListResponse } from '../../utils/formatters';
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
+import { useAuth } from '../../context/AuthContext';
+import { isTeacherRole, normalizeRole } from '../../utils/roles';
 import {
   buildGradeItemFormData, getTabBySlug, GRADE_OPTIONS, itemViewerPath, tabSingularLabel,
 } from './academicsConstants';
@@ -27,6 +29,8 @@ export default function AcademicsSubjectItemsPage() {
   const { typeSlug, subjectId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isTeacher = isTeacherRole(normalizeRole(user?.role));
   const tab = getTabBySlug(typeSlug);
   const subjectNumericId = Number(subjectId);
 
@@ -45,7 +49,7 @@ export default function AcademicsSubjectItemsPage() {
   const { data: yearsData } = useQuery({
     queryKey: ['academic-years'],
     queryFn: () => academicsSubApi.years.list({ page_size: 50 }),
-    enabled: !hideAcademicYear,
+    select: normalizeListResponse,
   });
 
   const { data: subjectOptions = [] } = useQuery({
@@ -59,7 +63,10 @@ export default function AcademicsSubjectItemsPage() {
     [subjectOptions, subjectNumericId],
   );
 
-  const yearOptions = useMemo(() => toEthiopianYearOptions(yearsData), [yearsData]);
+  const yearOptions = useMemo(
+    () => toEthiopianYearOptions({ results: yearsData?.results || [] }),
+    [yearsData],
+  );
   const defaultYearId = useMemo(() => {
     const match = yearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR);
     return match?.value || yearOptions[0]?.value || '';
@@ -117,6 +124,7 @@ export default function AcademicsSubjectItemsPage() {
   };
 
   const columns = useMemo(() => {
+    const cellText = 'text-gray-900 dark:text-gray-100';
     const base = [
       {
         key: 'title',
@@ -127,30 +135,34 @@ export default function AcademicsSubjectItemsPage() {
             className="font-semibold text-primary hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
-            {r.title}
+            {r.title || '—'}
           </Link>
         ),
       },
       {
         key: 'grade_level',
         header: 'Grade',
-        render: (r) => `Grade ${r.grade_level}`,
+        render: (r) => (
+          <span className={cellText}>
+            {r.grade_level != null && r.grade_level !== '' ? `Grade ${r.grade_level}` : '—'}
+          </span>
+        ),
       },
-    ];
-    if (!hideAcademicYear) {
-      base.push({
+      {
         key: 'academic_year_name',
         header: 'First Added (Year)',
-        render: (r) => r.academic_year_name || '—',
-      });
-    }
+        render: (r) => (
+          <span className={cellText}>{r.academic_year_name || '—'}</span>
+        ),
+      },
+    ];
     base.push(
       {
         key: 'files',
         header: 'Files',
         render: (r) => {
           const count = r.attachment_count ?? (r.attachments || []).length;
-          if (!count) return '—';
+          if (!count) return <span className={cellText}>—</span>;
           return (
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
               {count} file{count === 1 ? '' : 's'} · click row to open
@@ -159,11 +171,22 @@ export default function AcademicsSubjectItemsPage() {
         },
       },
       {
-        key: 'created_at',
-        header: 'Uploaded',
-        render: (r) => formatDate(r.created_at),
+        key: 'uploaded_by_name',
+        header: 'Uploaded By',
+        render: (r) => (
+          <span className={cellText}>{r.uploaded_by_name || '—'}</span>
+        ),
       },
       {
+        key: 'created_at',
+        header: 'Uploaded',
+        render: (r) => (
+          <span className={cellText}>{formatDate(r.created_at)}</span>
+        ),
+      },
+    );
+    if (!isTeacher) {
+      base.push({
         key: 'actions',
         header: 'Actions',
         className: 'text-right',
@@ -185,10 +208,10 @@ export default function AcademicsSubjectItemsPage() {
             </button>
           </div>
         ),
-      },
-    );
+      });
+    }
     return base;
-  }, [hideAcademicYear, subjectNumericId, tab]);
+  }, [isTeacher, subjectNumericId, tab]);
 
   const subjectTitle = subject?.name || 'Subject';
 
@@ -273,7 +296,7 @@ export default function AcademicsSubjectItemsPage() {
         onClose={() => { setModalOpen(false); setEditing(null); }}
         tab={tab}
         subjectLabel={subjectTitle}
-        editing={editing}
+        editing={isTeacher ? null : editing}
         yearOptions={yearOptions}
         defaultYearId={defaultYearId}
         onSubmit={handleFormSubmit}

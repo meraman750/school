@@ -6,10 +6,14 @@ import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import { classTimetableGradePath, classTimetableListPath, classTimetableSectionPath } from './timetableConstants';
+import { useAuth } from '../../context/AuthContext';
+import { isTeacherRole, normalizeRole } from '../../utils/roles';
 
 export default function ClassGradeSectionsPage({ gradeLevel }) {
   const grade = Number(gradeLevel);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isTeacher = isTeacherRole(normalizeRole(user?.role));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timetable', 'grade-sections', grade],
@@ -39,7 +43,9 @@ export default function ClassGradeSectionsPage({ gradeLevel }) {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">Class Timetable</p>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Grade {grade}</h1>
-          <p className="text-xs text-gray-500">Select a section to view or edit its weekly schedule</p>
+          <p className="text-xs text-gray-500">
+            {isTeacher ? 'View weekly schedule (read-only)' : 'Select a section to view or edit its weekly schedule'}
+          </p>
         </div>
       </div>
 

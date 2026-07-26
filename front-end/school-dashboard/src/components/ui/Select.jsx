@@ -1,11 +1,16 @@
-export default function Select({
-  label,
-  error,
-  options = [],
-  placeholder = 'Select...',
-  className = '',
-  ...props
-}) {
+import { forwardRef } from 'react';
+
+const Select = forwardRef(function Select(
+  {
+    label,
+    error,
+    options = [],
+    placeholder = 'Select...',
+    className = '',
+    ...props
+  },
+  ref,
+) {
   return (
     <div>
       {label && (
@@ -14,6 +19,7 @@ export default function Select({
         </label>
       )}
       <select
+        ref={ref}
         className={`w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white ${error ? 'border-red-500' : ''} ${className}`}
         {...props}
       >
@@ -29,4 +35,6 @@ export default function Select({
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   );
-}
+});
+
+export default Select;

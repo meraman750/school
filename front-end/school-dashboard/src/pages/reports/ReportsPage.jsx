@@ -1,20 +1,39 @@
 import { Link } from 'react-router-dom';
 import { FiChevronRight } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
+import EmptyState from '../../components/ui/EmptyState';
 import { REPORT_GRADE_LEVELS, reportsGradePath } from './reportsConstants';
+import useTeacherAssignedSections from '../../hooks/useTeacherAssignedSections';
 
 export default function ReportsPage() {
+  const { isTeacher, gradeLevels, isLoading } = useTeacherAssignedSections();
+
+  const grades = isTeacher
+    ? gradeLevels
+    : REPORT_GRADE_LEVELS;
+
+  if (isTeacher && !isLoading && grades.length === 0) {
+    return (
+      <EmptyState
+        title="No classes assigned"
+        description="Ask an administrator to assign you as class teacher for a grade."
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Student Reports</h2>
         <p className="mt-0.5 text-xs text-gray-500">
-          Choose a grade, then a section, to enter marks and export class results
+          {isTeacher
+            ? 'Your assigned class only — roster and marks (empty until an admin assigns you)'
+            : 'Choose a grade, then a section, to enter marks and export class results'}
         </p>
       </div>
 
       <ul className="flex flex-col gap-3">
-        {REPORT_GRADE_LEVELS.map((grade) => (
+        {grades.map((grade) => (
           <li key={grade}>
             <Link to={reportsGradePath(grade)} className="block">
               <Card padding className="group transition-shadow hover:shadow-md">

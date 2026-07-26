@@ -1,14 +1,16 @@
 import CrudModulePage from '../../components/shared/CrudModulePage';
 import { libraryApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { isAdminRole, isTeacherRole, normalizeRole } from '../../utils/roles';
 
 const columns = [
-  { key: 'title', header: 'Book', render: (r) => <span className="font-semibold">{r.title || r.name}</span> },
-  { key: 'isbn', header: 'ISBN', render: (r) => r.isbn || '—' },
-  { key: 'author', header: 'Author', render: (r) => r.author || '—' },
-  { key: 'category', header: 'Category', render: (r) => r.category_name || '—' },
-  { key: 'copies', header: 'Copies', render: (r) => r.total_copies ?? r.available_copies ?? '—' },
-  { key: 'shelf_number', header: 'Shelf Number', render: (r) => (r.shelf_number != null ? r.shelf_number : '—') },
-  { key: 'shelf_row', header: 'Row on Shelf', render: (r) => (r.shelf_row != null ? r.shelf_row : '—') },
+  { key: 'title', header: 'Book', render: (r) => <span className="font-semibold text-gray-900 dark:text-gray-100">{r.title || r.name || '—'}</span> },
+  { key: 'isbn', header: 'ISBN', render: (r) => <span className="text-gray-900 dark:text-gray-100">{r.isbn || '—'}</span> },
+  { key: 'author', header: 'Author', render: (r) => <span className="text-gray-900 dark:text-gray-100">{r.author || '—'}</span> },
+  { key: 'category', header: 'Category', render: (r) => <span className="text-gray-900 dark:text-gray-100">{r.category_name || '—'}</span> },
+  { key: 'copies', header: 'Copies', render: (r) => <span className="text-gray-900 dark:text-gray-100">{r.total_copies ?? r.copies ?? r.available_copies ?? '—'}</span> },
+  { key: 'shelf_number', header: 'Shelf Number', render: (r) => <span className="text-gray-900 dark:text-gray-100">{r.shelf_number != null ? r.shelf_number : '—'}</span> },
+  { key: 'shelf_row', header: 'Row on Shelf', render: (r) => <span className="text-gray-900 dark:text-gray-100">{r.shelf_row != null ? r.shelf_row : '—'}</span> },
 ];
 
 const formFields = [
@@ -48,10 +50,14 @@ function preparePayload(formData, editing) {
 }
 
 export default function LibraryPage() {
+  const { user } = useAuth();
+  const role = normalizeRole(user?.role);
+  const canManage = isAdminRole(role) || isTeacherRole(role) || role === 'LIBRARIAN';
+
   return (
     <CrudModulePage
       title="Library"
-      description="Manage books and shelf locations"
+      description={canManage ? 'Manage books and shelf locations' : 'Browse the school library catalog'}
       queryKey={['library']}
       api={libraryApi}
       columns={columns}
@@ -67,7 +73,11 @@ export default function LibraryPage() {
         shelf_row: '',
       })}
       searchPlaceholder="Search books..."
-      createLabel="Add Book"
+      createLabel={canManage ? 'Add Book' : null}
+      allowEdit={canManage}
+      allowDelete={isAdminRole(role) || role === 'LIBRARIAN'}
+      emptyTitle="No books in catalog"
+      emptyDescription="Add books to the library or run seed data."
     />
   );
 }

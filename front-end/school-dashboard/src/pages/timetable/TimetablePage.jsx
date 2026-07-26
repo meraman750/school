@@ -6,11 +6,12 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { isReadOnlyModule, isTeacherRole, normalizeRole } from '../../utils/roles';
 import {
   GRADE_LEVELS,
   annualScheduleYearPath,
   classTimetableGradePath,
-  classTimetableListPath,
 } from './timetableConstants';
 
 const TABS = [
@@ -20,6 +21,8 @@ const TABS = [
 
 
 function AnnualYearListTab() {
+  const { user } = useAuth();
+  const readOnly = isReadOnlyModule(normalizeRole(user?.role), 'timetable');
   const { data: years = [], isLoading, isError } = useQuery({
     queryKey: ['annual-schedule', 'year-options'],
     queryFn: () => academicsSubApi.annualSchedules.yearOptions(),
@@ -34,7 +37,9 @@ function AnnualYearListTab() {
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">Annual Schedule — Academic Years</h3>
-        <p className="text-xs text-gray-500">Select a year to view and manage its calendar events</p>
+        <p className="text-xs text-gray-500">
+          {readOnly ? 'View calendar events for each academic year' : 'Select a year to view and manage its calendar events'}
+        </p>
       </div>
 
       {isLoading ? (
@@ -71,14 +76,22 @@ function AnnualYearListTab() {
 }
 
 function ClassGradeListTab() {
+  const { user } = useAuth();
+  const isTeacher = isTeacherRole(normalizeRole(user?.role));
+  const grades = GRADE_LEVELS;
+
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-bold text-gray-900 dark:text-white">Class Timetable — Grades</h3>
-        <p className="text-xs text-gray-500">Choose a grade, then section A, B, or C to manage the weekly schedule</p>
+        <p className="text-xs text-gray-500">
+          {isTeacher
+            ? 'View weekly schedules for all grades (read-only)'
+            : 'Choose a grade, then section A, B, or C to manage the weekly schedule'}
+        </p>
       </div>
       <ul className="flex flex-col gap-3">
-        {GRADE_LEVELS.map((grade) => (
+        {grades.map((grade) => (
           <li key={grade}>
             <Link to={classTimetableGradePath(grade)} className="block">
               <Card padding className="group transition-shadow hover:shadow-md">

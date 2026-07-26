@@ -20,7 +20,7 @@ export default function Table({ columns, data, onRowClick, emptyMessage = 'No re
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 text-xs dark:divide-gray-800">
+          <tbody className="divide-y divide-gray-100 text-xs text-gray-900 dark:divide-gray-800 dark:text-gray-100">
             {data.map((row, idx) => (
               <tr
                 key={row.id ?? idx}
@@ -29,7 +29,9 @@ export default function Table({ columns, data, onRowClick, emptyMessage = 'No re
               >
                 {columns.map((col) => (
                   <td key={col.key} className={`p-4 ${col.className || ''}`}>
-                    {col.render ? col.render(row) : row[col.key]}
+                    {col.render
+                      ? col.render(row)
+                      : (row[col.key] != null && row[col.key] !== '' ? row[col.key] : '—')}
                   </td>
                 ))}
               </tr>

@@ -342,15 +342,23 @@ class GradeAcademicItemSerializer(serializers.ModelSerializer):
     subject_code = serializers.CharField(source='subject.code', read_only=True)
     item_type_label = serializers.SerializerMethodField()
     attachment_count = serializers.SerializerMethodField()
+    uploaded_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = GradeAcademicItem
         fields = (
             'id', 'item_type', 'item_type_label', 'subject', 'subject_name', 'subject_code',
             'title', 'grade_level', 'academic_year', 'academic_year_name', 'description',
-            'attachments', 'attachment_count', 'created_at',
+            'attachments', 'attachment_count', 'uploaded_by_name', 'created_at',
         )
         read_only_fields = ('created_at',)
+
+    def get_uploaded_by_name(self, obj):
+        user = getattr(obj, 'created_by', None)
+        if not user:
+            return None
+        full = user.get_full_name()
+        return full.strip() if full and full.strip() else user.email
 
     def get_item_type_label(self, obj):
         return dict(GradeAcademicItem.ItemType.choices).get(obj.item_type, obj.item_type)

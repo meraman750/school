@@ -398,6 +398,14 @@ class TimetableViewSet(BaseModelViewSet):
     filterset_fields = ['school_class', 'section', 'subject', 'teacher', 'day_of_week', 'period_number']
     ordering_fields = ['day_of_week', 'period_number', 'start_time']
 
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if getattr(request.user, 'role', None) == 'TEACHER' and request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            raise MethodNotAllowed(
+                request.method,
+                detail='Teachers have view-only access to class timetables.',
+            )
+
     PERIOD_TIMES = {
         1: (time(8, 0), time(8, 45)),
         2: (time(8, 50), time(9, 35)),
@@ -487,6 +495,14 @@ class AnnualScheduleViewSet(BaseModelViewSet):
     search_fields = ['title', 'description']
     ordering_fields = ['start_date', 'title']
 
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if getattr(request.user, 'role', None) == 'TEACHER' and request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            raise MethodNotAllowed(
+                request.method,
+                detail='Teachers have view-only access to the annual schedule.',
+            )
+
     @action(detail=False, methods=['get'], url_path='year-options')
     def year_options(self, request):
         years = AcademicYear.objects.filter(
@@ -517,7 +533,7 @@ class RoomViewSet(BaseModelViewSet):
 
 class GradeAcademicItemViewSet(BaseModelViewSet):
     queryset = GradeAcademicItem.objects.filter(is_deleted=False).select_related(
-        'academic_year', 'subject',
+        'academic_year', 'subject', 'created_by',
     ).prefetch_related(
         Prefetch(
             'attachments',
