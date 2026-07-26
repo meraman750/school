@@ -438,3 +438,19 @@ class GradeExamScheduleEntry(BaseModel):
 
     def __str__(self):
         return f'Grade {self.grade_level} · {self.subject} · {self.exam_date}'
+
+
+class GradeExamSchedulePlan(BaseModel):
+    grade_level = models.PositiveIntegerField(unique=True)
+    title = models.CharField(max_length=200, default='Exam Schedule')
+    subjects_per_day = models.PositiveIntegerField(
+        default=1,
+        help_text='Target number of exam sessions per day (multiple subjects, different times).',
+    )
+
+    class Meta:
+        verbose_name = 'Grade exam schedule plan'
+        verbose_name_plural = 'Grade exam schedule plans'
+
+    def __str__(self):
+        return f'Grade {self.grade_level} · {self.title}'

@@ -6,6 +6,7 @@ from .models import (
     Grade, ReportCard, Transcript, Timetable, Room,
     GradeAcademicItem, GradeAcademicItemAttachment, AnnualSchedule, AnnualScheduleAttachment,
     GradeExamScheduleEntry,
+    GradeExamSchedulePlan,
 )
 
 ALLOWED_ACADEMIC_UPLOAD_TYPES = {
@@ -467,6 +468,38 @@ class GradeExamScheduleEntrySerializer(serializers.ModelSerializer):
         validated_data.pop('created_by', None)
         validated_data.pop('updated_by', None)
         return GradeExamScheduleEntry.objects.create(
+            created_by=user,
+            updated_by=user,
+            **validated_data,
+        )
+
+    def update(self, instance, validated_data):
+        validated_data.pop('created_by', None)
+        validated_data['updated_by'] = self.context['request'].user
+        return super().update(instance, validated_data)
+
+
+class GradeExamSchedulePlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GradeExamSchedulePlan
+        fields = ('id', 'grade_level', 'title', 'subjects_per_day', 'created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
+
+    def validate_grade_level(self, value):
+        if value < 1 or value > 8:
+            raise serializers.ValidationError('Grade level must be between 1 and 8.')
+        return value
+
+    def validate_subjects_per_day(self, value):
+        if value < 1 or value > 8:
+            raise serializers.ValidationError('Subjects per day must be between 1 and 8.')
+        return value
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data.pop('created_by', None)
+        validated_data.pop('updated_by', None)
+        return GradeExamSchedulePlan.objects.create(
             created_by=user,
             updated_by=user,
             **validated_data,

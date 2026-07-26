@@ -13,7 +13,7 @@ from .models import (
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
     Grade, ReportCard, Transcript, Timetable, Room,
     GradeAcademicItem, GradeAcademicItemAttachment, Subject, AnnualSchedule, AnnualScheduleAttachment,
-    GradeExamScheduleEntry,
+    GradeExamScheduleEntry, GradeExamSchedulePlan,
 )
 from .serializers import (
     AcademicYearSerializer, TermSerializer, SemesterSerializer, DepartmentSerializer,
@@ -21,7 +21,7 @@ from .serializers import (
     LessonPlanSerializer, AssignmentSerializer, HomeworkSerializer, ExaminationSerializer,
     ExamScheduleSerializer, GradeSerializer, ReportCardSerializer, TranscriptSerializer,
     TimetableSerializer, RoomSerializer, GradeAcademicItemSerializer, AnnualScheduleSerializer,
-    GradeExamScheduleEntrySerializer,
+    GradeExamScheduleEntrySerializer, GradeExamSchedulePlanSerializer,
 )
 
 
@@ -181,17 +181,73 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
     filterset_fields = ['grade_level', 'subject', 'exam_date']
     ordering_fields = ['exam_date', 'start_time']
 
-    @action(detail=False, methods=['post'], url_path='ensure-grade-sample')
-    def ensure_grade_sample(self, request):
-        grade_level = request.data.get('grade_level')
+    def _parse_grade_level(self, request):
+        grade_level = request.query_params.get('grade_level')
+        if grade_level is None and hasattr(request, 'data'):
+            grade_level = request.data.get('grade_level')
         if grade_level is None:
-            return Response({'detail': 'grade_level is required.'}, status=400)
+            return None, Response({'detail': 'grade_level is required.'}, status=400)
         try:
             grade_level = int(grade_level)
         except (TypeError, ValueError):
-            return Response({'detail': 'Invalid grade_level.'}, status=400)
+            return None, Response({'detail': 'Invalid grade_level.'}, status=400)
         if grade_level < 1 or grade_level > 8:
-            return Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+            return None, Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+        return grade_level, None
+
+    @action(detail=False, methods=['get', 'patch'], url_path='grade-plan')
+    def grade_plan(self, request):
+        grade_level, err = self._parse_grade_level(request)
+        if err:
+            return err
+        user = request.user
+        if request.method == 'GET':
+            plan, _ = GradeExamSchedulePlan.objects.get_or_create(
+                grade_level=grade_level,
+                defaults={
+                    'title': f'Grade {grade_level} Exam Schedule',
+                    'subjects_per_day': 1,
+                    'created_by': user,
+                    'updated_by': user,
+                },
+            )
+            return Response(GradeExamSchedulePlanSerializer(plan).data)
+
+        plan = GradeExamSchedulePlan.objects.filter(
+            grade_level=grade_level, is_deleted=False,
+        ).first()
+        if not plan:
+            plan = GradeExamSchedulePlan.objects.create(
+                grade_level=grade_level,
+                title=f'Grade {grade_level} Exam Schedule',
+                subjects_per_day=1,
+                created_by=user,
+                updated_by=user,
+            )
+        serializer = GradeExamSchedulePlanSerializer(
+            plan, data=request.data, partial=True, context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='ensure-grade-sample')
+    def ensure_grade_sample(self, request):
+        grade_level, err = self._parse_grade_level(request)
+        if err:
+            return err
+
+        user = request.user
+        plan, _ = GradeExamSchedulePlan.objects.get_or_create(
+            grade_level=grade_level,
+            defaults={
+                'title': f'Grade {grade_level} Exam Schedule',
+                'subjects_per_day': 1,
+                'created_by': user,
+                'updated_by': user,
+            },
+        )
+        subjects_per_day = max(1, min(8, plan.subjects_per_day))
 
         existing = self.get_queryset().filter(grade_level=grade_level)
         if existing.exists():
@@ -201,28 +257,30 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
         if not subjects:
             return Response({'detail': 'Add subjects before creating an exam schedule.'}, status=400)
 
-        user = request.user
         base = date.today()
         while base.weekday() >= 5:
             base += timedelta(days=1)
         while base.weekday() != 0:
             base += timedelta(days=1)
 
-        sample_times = [
+        daily_slots = [
             (time(9, 0), time(11, 0)),
             (time(11, 30), time(13, 0)),
-            (time(9, 0), time(11, 0)),
-            (time(11, 30), time(13, 0)),
-            (time(9, 0), time(11, 0)),
-            (time(11, 30), time(13, 0)),
-        ]
+            (time(14, 0), time(16, 0)),
+            (time(16, 30), time(18, 0)),
+        ][:subjects_per_day]
+
+        def next_weekday(d):
+            while d.weekday() >= 5:
+                d += timedelta(days=1)
+            return d
 
         created = []
         for index, subject in enumerate(subjects):
-            exam_date = base + timedelta(days=index)
-            if exam_date.weekday() >= 5:
-                exam_date += timedelta(days=2)
-            start_t, end_t = sample_times[index % len(sample_times)]
+            day_offset = index // subjects_per_day
+            slot_index = index % subjects_per_day
+            exam_date = next_weekday(base + timedelta(days=day_offset))
+            start_t, end_t = daily_slots[slot_index % len(daily_slots)]
             entry = GradeExamScheduleEntry.objects.create(
                 grade_level=grade_level,
                 subject=subject,
