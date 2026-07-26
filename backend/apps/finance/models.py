@@ -158,3 +158,49 @@ class Discount(BaseModel):
 
     def __str__(self):
         return self.name
+
+
+class StudentMonthlyFeeStatus(BaseModel):
+    """Finance manual confirmation of student fee payment per calendar month."""
+
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name='monthly_fee_statuses',
+    )
+    year = models.PositiveIntegerField()
+    month = models.PositiveSmallIntegerField()
+    is_paid = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['year', 'month']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'year', 'month'],
+                name='uniq_student_fee_status_month',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.student_id} {self.year}-{self.month:02d} paid={self.is_paid}'
+
+
+class TeacherMonthlyPayrollStatus(BaseModel):
+    """Finance manual confirmation of teacher salary payment per calendar month."""
+
+    teacher = models.ForeignKey(
+        'teachers.Teacher', on_delete=models.CASCADE, related_name='monthly_payroll_statuses',
+    )
+    year = models.PositiveIntegerField()
+    month = models.PositiveSmallIntegerField()
+    is_paid = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['year', 'month']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['teacher', 'year', 'month'],
+                name='uniq_teacher_payroll_status_month',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.teacher_id} {self.year}-{self.month:02d} paid={self.is_paid}'

@@ -96,6 +96,7 @@ export const authApi = {
   logout: (refresh) => api.post('auth/logout/', { refresh }).then((r) => r.data),
   forgotPassword: (email) => api.post('auth/forgot-password/', { email }).then((r) => r.data),
   resetPassword: (payload) => api.post('auth/reset-password/', payload).then((r) => r.data),
+  updateMe: (payload) => api.patch('auth/users/me/', payload).then((r) => r.data),
 };
 
 function createResourceService(basePath) {
@@ -123,6 +124,10 @@ export const studentMedicalApi = createResourceService('students/medical-info');
 export const teachersApi = {
   ...createResourceService('teachers/teachers'),
   getProfile: (id) => api.get(`teachers/teachers/${id}/profile/`).then((r) => r.data),
+  me: () => api.get('teachers/teachers/me/').then((r) => r.data),
+  assignedSections: () => api.get('teachers/teachers/assigned-sections/').then((r) => r.data),
+  assignClassTeacher: (id, payload) =>
+    api.post(`teachers/teachers/${id}/assign-class-teacher/`, payload).then((r) => r.data),
 };
 export const teacherQualificationsApi = createResourceService('teachers/qualifications');
 export const teacherLeavesApi = createResourceService('teachers/leaves');
@@ -140,6 +145,24 @@ export const settingsApi = createResourceService('settings/school-profile');
 
 export const dashboardApi = {
   getStats: () => api.get('dashboard/stats/').then((r) => r.data),
+};
+
+export const portalApi = {
+  getContext: () => api.get('portal/context/').then((r) => r.data),
+};
+
+export const financeApi = {
+  reports: () => api.get('finance/reports/').then((r) => r.data),
+  studentCompliance: (year) =>
+    api.get('finance/compliance/students/', { params: { year } }).then((r) => r.data),
+  teacherCompliance: (year) =>
+    api.get('finance/compliance/teachers/', { params: { year } }).then((r) => r.data),
+  setStudentCompliance: ({ student_id, year, month, paid }) =>
+    api.post('finance/compliance/students/', { student_id, year, month, paid }).then((r) => r.data),
+  setTeacherCompliance: ({ teacher_id, year, month, paid }) =>
+    api.post('finance/compliance/teachers/', { teacher_id, year, month, paid }).then((r) => r.data),
+  invoices: createResourceService('finance/invoices'),
+  payments: createResourceService('finance/payments'),
 };
 
 export const academicsSubApi = {

@@ -1,11 +1,22 @@
 from django.db.models import Sum, Count
+from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsFinanceStaff
+from apps.students.models import Student
+from apps.teachers.models import Teacher
 
-from .models import FeeStructure, Invoice, Payment, Receipt, Scholarship, Discount
+from .compliance import (
+    build_student_compliance_row,
+    build_teacher_compliance_row,
+    set_student_month_paid,
+    set_teacher_month_paid,
+)
+from .models import (
+    FeeStructure, Invoice, Payment, Receipt, Scholarship, Discount,
+)
 from .serializers import (
     FeeStructureSerializer, InvoiceSerializer, PaymentSerializer,
     ReceiptSerializer, ScholarshipSerializer, DiscountSerializer,
@@ -88,3 +99,73 @@ class FinancialReportsView(APIView):
                 'payments_by_method': list(payments_by_method),
             },
         })
+
+
+class FinanceStudentMonthlyComplianceView(APIView):
+    """Track whether each active student paid required fees per calendar month."""
+    permission_classes = [IsFinanceStaff]
+
+    def get(self, request):
+        year = int(request.query_params.get('year', timezone.now().year))
+        students = Student.objects.filter(is_deleted=False, status='ACTIVE').order_by('last_name', 'first_name')
+        rows = [build_student_compliance_row(student, year) for student in students]
+        return Response({'year': year, 'students': rows})
+
+    def post(self, request):
+        try:
+            student_id = int(request.data.get('student_id'))
+            year = int(request.data.get('year', timezone.now().year))
+            month = int(request.data.get('month'))
+            paid = request.data.get('paid')
+        except (TypeError, ValueError):
+            return Response({'detail': 'student_id, year, month, and paid are required.'}, status=400)
+        if month < 1 or month > 12:
+            return Response({'detail': 'month must be between 1 and 12.'}, status=400)
+        if not isinstance(paid, bool):
+            if str(paid).lower() in ('true', '1', 'yes'):
+                paid = True
+            elif str(paid).lower() in ('false', '0', 'no'):
+                paid = False
+            else:
+                return Response({'detail': 'paid must be true or false.'}, status=400)
+        try:
+            student = Student.objects.get(pk=student_id, is_deleted=False)
+        except Student.DoesNotExist:
+            return Response({'detail': 'Student not found.'}, status=404)
+        set_student_month_paid(student, year, month, paid, request.user)
+        return Response(build_student_compliance_row(student, year))
+
+
+class FinanceTeacherPayrollComplianceView(APIView):
+    """Track whether each active teacher received salary per calendar month."""
+    permission_classes = [IsFinanceStaff]
+
+    def get(self, request):
+        year = int(request.query_params.get('year', timezone.now().year))
+        teachers = Teacher.objects.filter(is_deleted=False, status='ACTIVE').order_by('last_name', 'first_name')
+        rows = [build_teacher_compliance_row(teacher, year) for teacher in teachers]
+        return Response({'year': year, 'teachers': rows})
+
+    def post(self, request):
+        try:
+            teacher_id = int(request.data.get('teacher_id'))
+            year = int(request.data.get('year', timezone.now().year))
+            month = int(request.data.get('month'))
+            paid = request.data.get('paid')
+        except (TypeError, ValueError):
+            return Response({'detail': 'teacher_id, year, month, and paid are required.'}, status=400)
+        if month < 1 or month > 12:
+            return Response({'detail': 'month must be between 1 and 12.'}, status=400)
+        if not isinstance(paid, bool):
+            if str(paid).lower() in ('true', '1', 'yes'):
+                paid = True
+            elif str(paid).lower() in ('false', '0', 'no'):
+                paid = False
+            else:
+                return Response({'detail': 'paid must be true or false.'}, status=400)
+        try:
+            teacher = Teacher.objects.get(pk=teacher_id, is_deleted=False)
+        except Teacher.DoesNotExist:
+            return Response({'detail': 'Teacher not found.'}, status=404)
+        set_teacher_month_paid(teacher, year, month, paid, request.user)
+        return Response(build_teacher_compliance_row(teacher, year))
