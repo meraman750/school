@@ -6,6 +6,9 @@ from apps.core.permissions import IsStaffMember
 
 from .models import Document
 from .serializers import DocumentSerializer, resolve_document_type
+
+
+class DocumentViewSet(BaseModelViewSet):
     queryset = Document.objects.filter(is_deleted=False)
     serializer_class = DocumentSerializer
     permission_classes = [IsStaffMember]

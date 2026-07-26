@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
@@ -22,6 +23,7 @@ import { formatDate, getDisplayName } from '../../utils/formatters';
 import {
   buildDocumentFormData,
   categoryLabel,
+  documentDetailPath,
   DOCUMENT_CATEGORY_OPTIONS,
   mapCategoryForEdit,
 } from './documentsConstants';
@@ -31,19 +33,7 @@ const columns = [
     key: 'title',
     header: 'Document',
     render: (r) => (
-      <div>
-        <span className="font-semibold">{r.title}</span>
-        {r.file_url && (
-          <a
-            href={r.file_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-0.5 block text-xs text-primary hover:underline"
-          >
-            Open file
-          </a>
-        )}
-      </div>
+      <span className="font-semibold text-primary hover:underline">{r.title}</span>
     ),
   },
   {
@@ -79,6 +69,7 @@ const filters = [
 ];
 
 export default function DocumentsPage() {
+  const navigate = useNavigate();
   const queryKey = ['documents'];
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState({});
@@ -96,14 +87,20 @@ export default function DocumentsPage() {
   };
 
   const { data, isLoading, isError } = useListQuery(queryKey, documentsApi.list, params);
-  const { register, handleSubmit, reset } = useForm();
+  const { register, handleSubmit, reset } = useForm({
+    defaultValues: {
+      title: '',
+      category: 'policy',
+      description: '',
+    },
+  });
 
   const createMutation = useCreateMutation(queryKey, documentsApi.create, {
     onSuccess: () => {
       setModalOpen(false);
       setEditing(null);
       setFiles([]);
-      reset();
+      reset({ title: '', category: 'policy', description: '' });
     },
   });
 
@@ -115,7 +112,7 @@ export default function DocumentsPage() {
         setModalOpen(false);
         setEditing(null);
         setFiles([]);
-        reset();
+        reset({ title: '', category: 'policy', description: '' });
       },
     },
   );
@@ -139,7 +136,8 @@ export default function DocumentsPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = (row, event) => {
+    event?.stopPropagation();
     setEditing(row);
     setModalOpen(true);
   };
@@ -149,16 +147,23 @@ export default function DocumentsPage() {
   };
 
   const onSubmit = (values) => {
+    if (!values.title?.trim()) {
+      toast.error('Document title is required.');
+      return;
+    }
     if (!editing && files.length === 0) {
       toast.error('Upload at least one file.');
       return;
     }
+    const payload = buildDocumentFormData(
+      { ...values, category: values.category || 'other' },
+      files,
+    );
     if (editing) {
-      const fd = buildDocumentFormData(values, files);
-      updateMutation.mutate({ id: editing.id, data: fd });
+      updateMutation.mutate({ id: editing.id, data: payload });
       return;
     }
-    createMutation.mutate(buildDocumentFormData(values, files));
+    createMutation.mutate(payload);
   };
 
   const tableColumns = [
@@ -171,14 +176,17 @@ export default function DocumentsPage() {
         <div className="flex justify-end gap-1">
           <button
             type="button"
-            onClick={() => openEdit(row)}
+            onClick={(e) => openEdit(row, e)}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary"
           >
             <FiEdit2 />
           </button>
           <button
             type="button"
-            onClick={() => setDeleteTarget(row)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteTarget(row);
+            }}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
           >
             <FiTrash2 />
@@ -195,7 +203,7 @@ export default function DocumentsPage() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Documents</h2>
           <p className="mt-0.5 text-xs text-gray-500">Manage school documents, policies, and file archives</p>
         </div>
-        <Button size="sm" onClick={openCreate}>
+        <Button type="button" size="sm" onClick={openCreate}>
           <FiPlus /> Upload Document
         </Button>
       </div>
@@ -235,7 +243,11 @@ export default function DocumentsPage() {
         />
       ) : (
         <>
-          <Table columns={tableColumns} data={data?.results || []} />
+          <Table
+            columns={tableColumns}
+            data={data?.results || []}
+            onRowClick={(row) => navigate(documentDetailPath(row.id))}
+          />
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -260,6 +272,7 @@ export default function DocumentsPage() {
           <Select
             label="Category"
             options={DOCUMENT_CATEGORY_OPTIONS}
+            placeholder={false}
             {...register('category', { required: true })}
           />
           <Textarea label="Description" rows={3} {...register('description')} />
@@ -270,6 +283,7 @@ export default function DocumentsPage() {
             <input
               type="file"
               multiple
+              accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/gif"
               onChange={onFileChange}
               className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary"
             />

@@ -28,13 +28,15 @@ class DocumentSerializer(serializers.ModelSerializer):
     uploaded_by_name = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
     file_size = serializers.SerializerMethodField()
+    original_filename = serializers.SerializerMethodField()
     category = serializers.CharField(source='document_type', required=False)
 
     class Meta:
         model = Document
         fields = (
             'id', 'title', 'document_type', 'category', 'owner_type', 'description',
-            'file', 'file_url', 'file_size', 'issue_date', 'expiry_date', 'is_verified',
+            'file', 'file_url', 'file_size', 'original_filename',
+            'issue_date', 'expiry_date', 'is_verified',
             'uploaded_by_name', 'created_at', 'updated_at',
         )
         read_only_fields = (
@@ -73,6 +75,11 @@ class DocumentSerializer(serializers.ModelSerializer):
         if size < 1024 * 1024:
             return f'{round(size / 1024, 1)} KB'
         return f'{round(size / (1024 * 1024), 1)} MB'
+
+    def get_original_filename(self, obj):
+        if not obj.file:
+            return ''
+        return obj.file.name.split('/')[-1] if obj.file.name else ''
 
     def validate(self, attrs):
         category = self.initial_data.get('category')

@@ -40,3 +40,16 @@ export function mapCategoryForEdit(row) {
   if (type === 'CONTRACT') return 'contract';
   return 'other';
 }
+
+export function documentDetailPath(documentId) {
+  return `/documents/${documentId}`;
+}
+
+export function documentToAttachments(doc) {
+  if (!doc?.file_url) return [];
+  return [{
+    id: doc.id,
+    file_url: doc.file_url,
+    original_filename: doc.original_filename || doc.title,
+  }];
+}

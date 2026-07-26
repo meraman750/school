@@ -43,6 +43,7 @@ import ExaminationGradePage from '../pages/examination/ExaminationGradePage';
 
 import LibraryPage from '../pages/library/LibraryPage';
 
+import DocumentDetailPage from '../pages/documents/DocumentDetailPage';
 import DocumentsPage from '../pages/documents/DocumentsPage';
 
 import ReportsPage from '../pages/reports/ReportsPage';
@@ -150,6 +151,8 @@ export default function AppRoutes() {
           <Route path="library" element={<RoleGuard moduleKey="library"><LibraryPage /></RoleGuard>} />
 
           <Route path="documents" element={<RoleGuard moduleKey="documents"><DocumentsPage /></RoleGuard>} />
+
+          <Route path="documents/:documentId" element={<RoleGuard moduleKey="documents"><DocumentDetailPage /></RoleGuard>} />
 
           <Route path="reports" element={<RoleGuard moduleKey="reports"><ReportsPage /></RoleGuard>} />
 
