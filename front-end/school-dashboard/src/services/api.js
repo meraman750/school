@@ -161,6 +161,8 @@ export const academicsSubApi = {
       api
         .patch('academics/grade-exam-schedules/grade-plan/', { grade_level: gradeLevel, ...data })
         .then((r) => r.data),
+    saveGradeWeek: (payload) =>
+      api.post('academics/grade-exam-schedules/save-grade-week/', payload).then((r) => r.data),
   },
   grades: createResourceService('academics/grades'),
   gradeItems: {

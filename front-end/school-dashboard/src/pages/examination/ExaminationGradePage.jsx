@@ -2,53 +2,31 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { FiArrowLeft, FiPlus, FiSave, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiPlus, FiSave, FiTrash2 } from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import Input from '../../components/ui/Input';
+import Modal from '../../components/ui/Modal';
 import Select from '../../components/ui/Select';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import {
-  applyWeekdayToIsoDate,
-  EXAM_WEEKDAYS,
-  toTimeInputValue,
-  weekdayFromIsoDate,
+  defaultWeekStartMondayIso,
+  EXAM_WEEK_DAYS,
+  examDaySlotsFromEntries,
+  flattenExamDaySlots,
+  formatTimeRange,
+  hasAnyExamSlot,
+  emptyExamDaySlots,
 } from './examinationConstants';
 
-function rowKey(entry) {
-  return String(entry.id);
-}
-
-function isNewRow(row) {
-  return typeof row.id === 'string' && row.id.startsWith('new-');
-}
-
-function mapRowFromApi(entry) {
+function newLocalExam(subjectOptions) {
   return {
-    id: entry.id,
-    subject: String(entry.subject),
-    exam_date: entry.exam_date,
-    weekday: weekdayFromIsoDate(entry.exam_date),
-    start_time: toTimeInputValue(entry.start_time),
-    end_time: toTimeInputValue(entry.end_time),
-    day_label: entry.day_label,
-    subject_name: entry.subject_name,
-  };
-}
-
-function defaultNewRow(grade, subjectOptions) {
-  const today = new Date();
-  const iso = today.toISOString().slice(0, 10);
-  return {
-    id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     subject: subjectOptions[0]?.value || '',
-    exam_date: iso,
-    weekday: weekdayFromIsoDate(iso),
+    subject_name: '',
     start_time: '09:00',
     end_time: '11:00',
-    day_label: '',
-    subject_name: '',
   };
 }
 
@@ -56,15 +34,19 @@ export default function ExaminationGradePage() {
   const { gradeLevel } = useParams();
   const grade = Number(gradeLevel);
   const queryClient = useQueryClient();
-  const queryKey = ['examination', 'grade-schedule', grade];
+  const scheduleQueryKey = ['examination', 'grade-schedule', grade];
   const planQueryKey = ['examination', 'grade-plan', grade];
 
-  const [rows, setRows] = useState([]);
-  const [removedIds, setRemovedIds] = useState([]);
-  const [dirty, setDirty] = useState(false);
+  const [daySlots, setDaySlots] = useState(emptyExamDaySlots);
   const [title, setTitle] = useState('');
-  const [subjectsPerDay, setSubjectsPerDay] = useState(1);
-  const [planDirty, setPlanDirty] = useState(false);
+  const [weekStart, setWeekStart] = useState(defaultWeekStartMondayIso);
+  const [isEditing, setIsEditing] = useState(true);
+  const [hasSavedOnce, setHasSavedOnce] = useState(false);
+
+  const [addExamDay, setAddExamDay] = useState(null);
+  const [draftSubject, setDraftSubject] = useState('');
+  const [draftStart, setDraftStart] = useState('09:00');
+  const [draftEnd, setDraftEnd] = useState('11:00');
 
   const { data: subjectsData } = useQuery({
     queryKey: ['subjects', 'examination'],
@@ -82,15 +64,13 @@ export default function ExaminationGradePage() {
     enabled: grade >= 1 && grade <= 8,
   });
 
-  useEffect(() => {
-    if (!plan) return;
-    setTitle(plan.title || '');
-    setSubjectsPerDay(plan.subjects_per_day ?? 1);
-    setPlanDirty(false);
-  }, [plan]);
-
-  const { data: schedule = [], isLoading, isError, refetch } = useQuery({
-    queryKey,
+  const {
+    data: schedule = [],
+    isLoading: scheduleLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: scheduleQueryKey,
     queryFn: async () => {
       await academicsSubApi.gradeExamSchedules.ensureGradeSample(grade);
       const list = await academicsSubApi.gradeExamSchedules.list({
@@ -104,98 +84,107 @@ export default function ExaminationGradePage() {
   });
 
   useEffect(() => {
-    setRows((schedule || []).map(mapRowFromApi));
-    setRemovedIds([]);
-    setDirty(false);
+    const next = examDaySlotsFromEntries(schedule);
+    setDaySlots(next);
+    const filled = hasAnyExamSlot(next);
+    setHasSavedOnce(filled);
+    setIsEditing(!filled);
   }, [schedule]);
 
+  useEffect(() => {
+    if (!plan) return;
+    setTitle(plan.title || `Grade ${grade} Exam Schedule`);
+    setWeekStart(plan.week_start_date || defaultWeekStartMondayIso());
+  }, [plan, grade]);
+
   const saveMutation = useMutation({
-    mutationFn: async ({ payloadRows, removed, planPayload }) => {
-      if (planPayload) {
-        await academicsSubApi.gradeExamSchedules.updateGradePlan(grade, planPayload);
+    mutationFn: () => {
+      const slots = flattenExamDaySlots(daySlots);
+      if (slots.length === 0) {
+        return Promise.reject(new Error('Add at least one exam before saving.'));
       }
-      await Promise.all(
-        removed.map((id) => academicsSubApi.gradeExamSchedules.delete(id)),
-      );
-      await Promise.all(
-        payloadRows.map((row) => {
-          const body = {
-            grade_level: grade,
-            subject: Number(row.subject),
-            exam_date: row.exam_date,
-            start_time: row.start_time,
-            end_time: row.end_time,
-          };
-          if (isNewRow(row)) {
-            return academicsSubApi.gradeExamSchedules.create(body);
-          }
-          return academicsSubApi.gradeExamSchedules.update(row.id, body);
-        }),
-      );
+      return academicsSubApi.gradeExamSchedules.saveGradeWeek({
+        grade_level: grade,
+        title: title.trim() || `Grade ${grade} Exam Schedule`,
+        week_start_date: weekStart,
+        slots,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: scheduleQueryKey });
       queryClient.invalidateQueries({ queryKey: planQueryKey });
-      setRemovedIds([]);
-      setDirty(false);
-      setPlanDirty(false);
+      setHasSavedOnce(true);
+      setIsEditing(false);
       toast.success('Exam schedule saved');
     },
-    onError: () => toast.error('Could not save exam schedule'),
+    onError: (err) => {
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (err.message || 'Could not save exam schedule');
+      toast.error(msg);
+    },
   });
 
   if (!grade || grade < 1 || grade > 8) {
     return <Navigate to="/examination" replace />;
   }
 
-  const updateRow = (id, patch) => {
-    setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)));
-    setDirty(true);
-  };
+  const subjectLabel = (subjectId) =>
+    subjectOptions.find((o) => o.value === String(subjectId))?.label || '—';
 
-  const handleDayChange = (id, weekday, examDate) => {
-    const nextDate = applyWeekdayToIsoDate(examDate, weekday);
-    updateRow(id, { weekday, exam_date: nextDate });
-  };
-
-  const handleRemoveRow = (id) => {
-    if (!isNewRow({ id })) {
-      setRemovedIds((prev) => [...prev, id]);
-    }
-    setRows((prev) => prev.filter((row) => row.id !== id));
-    setDirty(true);
-  };
-
-  const handleAddRow = () => {
+  const openAddExam = (dayValue) => {
     if (!subjectOptions.length) {
-      toast.error('Add subjects before adding exam slots');
+      toast.error('Add subjects in Academics before scheduling exams');
       return;
     }
-    setRows((prev) => [...prev, defaultNewRow(grade, subjectOptions)]);
-    setDirty(true);
+    setDraftSubject(subjectOptions[0].value);
+    setDraftStart('09:00');
+    setDraftEnd('11:00');
+    setAddExamDay(dayValue);
   };
 
-  const handleSave = () => {
-    const invalid = rows.some(
-      (row) => !row.subject || !row.exam_date || !row.start_time || !row.end_time,
-    );
-    if (invalid) {
-      toast.error('Fill subject, date, and times for every row');
+  const closeAddExam = () => setAddExamDay(null);
+
+  const submitAddExam = (e) => {
+    e.preventDefault();
+    if (!draftSubject || !draftStart || !draftEnd) {
+      toast.error('Choose subject and times');
       return;
     }
-    const planPayload =
-      planDirty || title !== (plan?.title ?? '') || subjectsPerDay !== (plan?.subjects_per_day ?? 1)
-        ? { title: title.trim() || 'Exam Schedule', subjects_per_day: subjectsPerDay }
-        : null;
-    saveMutation.mutate({
-      payloadRows: rows,
-      removed: removedIds,
-      planPayload,
+    if (draftEnd <= draftStart) {
+      toast.error('End time must be after start time');
+      return;
+    }
+    const exam = {
+      ...newLocalExam(subjectOptions),
+      subject: draftSubject,
+      subject_name: subjectLabel(draftSubject),
+      start_time: draftStart,
+      end_time: draftEnd,
+    };
+    setDaySlots((prev) => {
+      const list = [...(prev[addExamDay] || []), exam].sort((a, b) =>
+        a.start_time.localeCompare(b.start_time),
+      );
+      return { ...prev, [addExamDay]: list };
     });
+    closeAddExam();
   };
 
-  const loading = isLoading || planLoading;
-  const canSave = dirty || planDirty || removedIds.length > 0;
+  const removeExam = (dayValue, examId) => {
+    setDaySlots((prev) => ({
+      ...prev,
+      [dayValue]: (prev[dayValue] || []).filter((ex) => ex.id !== examId),
+    }));
+  };
+
+  const addExamDayMeta = EXAM_WEEK_DAYS.find((d) => d.value === addExamDay);
+  const loading = scheduleLoading || planLoading;
+  const tableSizeClass = isEditing ? 'text-sm' : 'text-lg sm:text-xl';
+  const examViewClass = isEditing
+    ? 'rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-800/80'
+    : 'min-h-[4rem] rounded-xl bg-white px-3 py-3 font-semibold text-gray-900 shadow-sm dark:bg-gray-900 dark:text-white text-lg sm:text-xl leading-snug';
+
+  const headerTitle = title.trim() || `Grade ${grade} Exam Schedule`;
 
   return (
     <div className="space-y-6">
@@ -207,61 +196,57 @@ export default function ExaminationGradePage() {
           >
             <FiArrowLeft />
           </Link>
-          <div className="min-w-0 flex-1">
+          <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">Examination</p>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Grade {grade}</h1>
-            <p className="text-xs text-gray-500">
-              Set a schedule title, subjects per day, and exam slots (same day, different times)
-            </p>
+            {isEditing ? (
+              <>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="mt-1 max-w-xl text-lg font-bold"
+                  placeholder={`Grade ${grade} Exam Schedule`}
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Add exams for each weekday, then save to publish the schedule
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">{headerTitle}</h1>
+                <p className="text-xs text-gray-500">Grade {grade} · exam week starting {weekStart}</p>
+              </>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={handleAddRow} disabled={loading}>
-            <FiPlus /> Add exam slot
-          </Button>
-          <Button size="sm" onClick={handleSave} loading={saveMutation.isPending} disabled={!canSave}>
-            <FiSave /> Save schedule
-          </Button>
+          {hasSavedOnce && !isEditing && (
+            <Button size="sm" variant="secondary" onClick={() => setIsEditing(true)}>
+              <FiEdit2 /> Edit schedule
+            </Button>
+          )}
+          {isEditing && (
+            <Button size="sm" onClick={() => saveMutation.mutate()} loading={saveMutation.isPending}>
+              <FiSave /> Save schedule
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="sm:col-span-2 lg:col-span-2">
+      {isEditing && (
+        <div className="max-w-xs">
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Schedule title
+            Exam week starts (Monday)
           </label>
           <Input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              setPlanDirty(true);
-            }}
-            placeholder="e.g. Grade 5 Midterm Exam Schedule 2018 E.C."
+            type="date"
+            value={weekStart}
+            onChange={(e) => setWeekStart(e.target.value)}
           />
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Subjects per day
-          </label>
-          <Input
-            type="number"
-            min={1}
-            max={8}
-            value={subjectsPerDay}
-            onChange={(e) => {
-              const n = Math.min(8, Math.max(1, Number(e.target.value) || 1));
-              setSubjectsPerDay(n);
-              setPlanDirty(true);
-            }}
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Planning hint: multiple exams on one day at different times
-          </p>
-        </div>
-      </div>
+      )}
 
       {loading ? (
-        <TableSkeleton rows={6} />
+        <TableSkeleton rows={7} />
       ) : isError ? (
         <EmptyState
           title="Failed to load exam schedule"
@@ -269,86 +254,118 @@ export default function ExaminationGradePage() {
           actionLabel="Retry"
           onAction={() => refetch()}
         />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          title="No schedule entries"
-          description="Add subjects in the system, or use Add exam slot."
-          actionLabel="Add exam slot"
-          onAction={handleAddRow}
-        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <table className="min-w-[960px] w-full border-collapse text-sm">
+          <table className={`min-w-[640px] w-full border-collapse ${tableSizeClass}`}>
             <thead>
-              <tr className="bg-primary/10 text-left text-xs font-bold uppercase tracking-wide text-gray-600">
-                <th className="border border-gray-200 px-3 py-3 dark:border-gray-700">Subject</th>
-                <th className="border border-gray-200 px-3 py-3 dark:border-gray-700">Date</th>
-                <th className="border border-gray-200 px-3 py-3 dark:border-gray-700">Day</th>
-                <th className="border border-gray-200 px-3 py-3 dark:border-gray-700">Start</th>
-                <th className="border border-gray-200 px-3 py-3 dark:border-gray-700">End</th>
-                <th className="border border-gray-200 px-3 py-3 dark:border-gray-700 w-16" />
+              <tr className="bg-primary/10">
+                <th className="border border-gray-200 px-3 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-600 dark:border-gray-700 w-36">
+                  Day
+                </th>
+                <th className="border border-gray-200 px-3 py-3 text-left text-xs font-bold uppercase tracking-wide text-gray-600 dark:border-gray-700">
+                  Exams
+                </th>
+                {isEditing && (
+                  <th className="border border-gray-200 px-3 py-3 text-right text-xs font-bold uppercase tracking-wide text-gray-600 dark:border-gray-700 w-32">
+                    Add
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={rowKey(row)} className="even:bg-gray-50/80 dark:even:bg-gray-800/40">
-                  <td className="border border-gray-200 p-2 dark:border-gray-700">
-                    <Select
-                      options={subjectOptions}
-                      value={row.subject}
-                      onChange={(e) => updateRow(row.id, { subject: e.target.value })}
-                    />
-                  </td>
-                  <td className="border border-gray-200 p-2 dark:border-gray-700">
-                    <Input
-                      type="date"
-                      value={row.exam_date}
-                      onChange={(e) => {
-                        const exam_date = e.target.value;
-                        updateRow(row.id, {
-                          exam_date,
-                          weekday: weekdayFromIsoDate(exam_date),
-                        });
-                      }}
-                    />
-                  </td>
-                  <td className="border border-gray-200 p-2 dark:border-gray-700">
-                    <Select
-                      options={EXAM_WEEKDAYS}
-                      value={row.weekday}
-                      onChange={(e) => handleDayChange(row.id, e.target.value, row.exam_date)}
-                    />
-                  </td>
-                  <td className="border border-gray-200 p-2 dark:border-gray-700">
-                    <Input
-                      type="time"
-                      value={row.start_time}
-                      onChange={(e) => updateRow(row.id, { start_time: e.target.value })}
-                    />
-                  </td>
-                  <td className="border border-gray-200 p-2 dark:border-gray-700">
-                    <Input
-                      type="time"
-                      value={row.end_time}
-                      onChange={(e) => updateRow(row.id, { end_time: e.target.value })}
-                    />
-                  </td>
-                  <td className="border border-gray-200 p-2 text-center dark:border-gray-700">
-                    <button
-                      type="button"
-                      className="rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-                      title="Remove slot"
-                      onClick={() => handleRemoveRow(row.id)}
-                    >
-                      <FiTrash2 />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {EXAM_WEEK_DAYS.map((day) => {
+                const exams = daySlots[day.value] || [];
+                return (
+                  <tr key={day.value} className="even:bg-gray-50/80 dark:even:bg-gray-800/40">
+                    <th className="border border-gray-200 bg-gray-50 px-3 py-4 text-left font-bold text-gray-800 dark:border-gray-700 dark:bg-gray-800/60 dark:text-white align-top">
+                      <span className="hidden sm:inline">{day.label}</span>
+                      <span className="sm:hidden">{day.short}</span>
+                    </th>
+                    <td className="border border-gray-200 p-3 align-top dark:border-gray-700">
+                      {exams.length === 0 ? (
+                        <p className="text-center text-sm text-gray-400 py-4">
+                          {isEditing ? 'No exams yet' : '—'}
+                        </p>
+                      ) : (
+                        <div className={`flex flex-col gap-2 ${isEditing ? '' : 'sm:flex-row sm:flex-wrap'}`}>
+                          {exams.map((exam) => (
+                            <div
+                              key={String(exam.id)}
+                              className={`${examViewClass} ${isEditing ? 'flex items-center justify-between gap-2' : 'flex flex-col items-center justify-center text-center'}`}
+                            >
+                              <div>
+                                <div className="font-semibold">{subjectLabel(exam.subject)}</div>
+                                <div className={`${isEditing ? 'text-xs' : 'text-sm sm:text-base'} text-gray-500 dark:text-gray-400`}>
+                                  {formatTimeRange(exam.start_time, exam.end_time)}
+                                </div>
+                              </div>
+                              {isEditing && (
+                                <button
+                                  type="button"
+                                  className="shrink-0 rounded-lg p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                                  title="Remove exam"
+                                  onClick={() => removeExam(day.value, exam.id)}
+                                >
+                                  <FiTrash2 />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    {isEditing && (
+                      <td className="border border-gray-200 p-3 text-right align-top dark:border-gray-700">
+                        <Button size="sm" variant="outline" onClick={() => openAddExam(day.value)}>
+                          <FiPlus /> Add exam
+                        </Button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
+
+      <Modal
+        isOpen={addExamDay != null}
+        onClose={closeAddExam}
+        title={addExamDayMeta ? `Add exam · ${addExamDayMeta.label}` : 'Add exam'}
+        size="sm"
+      >
+        <form onSubmit={submitAddExam} className="space-y-4">
+          <Select
+            label="Subject"
+            options={subjectOptions}
+            value={draftSubject}
+            onChange={(e) => setDraftSubject(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Start"
+              type="time"
+              value={draftStart}
+              onChange={(e) => setDraftStart(e.target.value)}
+            />
+            <Input
+              label="End"
+              type="time"
+              value={draftEnd}
+              onChange={(e) => setDraftEnd(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={closeAddExam}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm">
+              Add exam
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
