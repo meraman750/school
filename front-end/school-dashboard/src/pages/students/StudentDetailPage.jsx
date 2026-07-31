@@ -30,6 +30,7 @@ import {
   isStudentBillingView,
   normalizeRole,
 } from '../../utils/roles';
+import { GRADE_OPTIONS } from '../../utils/constants';
 
 const QUARTERS = [
   { value: '1', label: 'Quarter 1' },
@@ -38,7 +39,6 @@ const QUARTERS = [
   { value: '4', label: 'Quarter 4' },
 ];
 
-const GRADES = [1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({ value: String(g), label: `Grade ${g}` }));
 const SECTIONS = ['A', 'B', 'C', 'D'].map((s) => ({ value: s, label: `Section ${s}` }));
 const GENDERS = [
   { value: 'M', label: 'Male' },
@@ -227,7 +227,7 @@ function AcademicEditModal({ isOpen, onClose, student, onSuccess }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select
             label="Grade Level"
-            options={GRADES}
+            options={GRADE_OPTIONS}
             placeholder={false}
             {...register('grade_level', { required: true })}
             disabled={!current}
@@ -377,7 +377,7 @@ function EnrollmentAddModal({ isOpen, onClose, student, onSuccess }) {
           {...register('academic_year', { required: true })}
         />
         <div className="grid grid-cols-2 gap-4">
-          <Select label="Grade" options={GRADES} placeholder={false} {...register('grade_level', { required: true })} />
+          <Select label="Grade" options={GRADE_OPTIONS} placeholder={false} {...register('grade_level', { required: true })} />
           <Select label="Section" options={[{ value: '', label: 'None' }, ...SECTIONS]} {...register('section')} />
         </div>
         <Input label="Start Date" type="date" {...register('start_date')} />
@@ -480,7 +480,7 @@ function EnrollmentEditModal({ isOpen, onClose, record, onSuccess }) {
       <form onSubmit={handleSubmit((d) => mutation.mutate(d), onFormInvalid)} className="space-y-4">
         <Input label="Academic Year" value={record.academic_year_name} disabled />
         <div className="grid grid-cols-2 gap-4">
-          <Select label="Grade" options={GRADES} placeholder={false} {...register('grade_level', { required: true })} />
+          <Select label="Grade" options={GRADE_OPTIONS} placeholder={false} {...register('grade_level', { required: true })} />
           <Select label="Section" options={[{ value: '', label: 'None' }, ...SECTIONS]} {...register('section')} />
         </div>
         <Input label="Start Date" type="date" {...register('start_date')} />
@@ -866,7 +866,7 @@ function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Select label="Academic Year (E.C.)" options={yearOptions} {...register('academic_year', { required: true })} />
-          <Select label="Grade" options={GRADES} placeholder={false} {...register('grade_level', { required: true })} />
+          <Select label="Grade" options={GRADE_OPTIONS} placeholder={false} {...register('grade_level', { required: true })} />
           <Select label="Quarter" options={QUARTERS} {...register('quarter', { required: true })} />
         </div>
 

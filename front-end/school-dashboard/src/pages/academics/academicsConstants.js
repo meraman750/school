@@ -1,14 +1,11 @@
+export { GRADE_LEVELS, GRADE_OPTIONS, isValidGradeLevel, MAX_GRADE_LEVEL, MIN_GRADE_LEVEL } from '../../utils/constants';
+
 export const ACADEMIC_TABS = [
   { key: 'ASSIGNMENT', label: 'Assignments', slug: 'assignments' },
   { key: 'MID_EXAM', label: 'Mid Exams', slug: 'mid-exams' },
   { key: 'FINAL_EXAM', label: 'Final Exams', slug: 'final-exams' },
   { key: 'MATERIAL', label: 'Materials', slug: 'materials', hideAcademicYear: true },
 ];
-
-export const GRADE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({
-  value: String(g),
-  label: `Grade ${g}`,
-}));
 
 export function getTabByKey(key) {
   return ACADEMIC_TABS.find((t) => t.key === key);

@@ -17,7 +17,7 @@ const STATUS_OPTIONS = [
 
 const SECTION_OPTIONS = ['A', 'B', 'C', 'D', 'E'].map((s) => ({ value: s, label: `Section ${s}` }));
 
-const GRADE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({ value: String(g), label: `Grade ${g}` }));
+import { GRADE_OPTIONS, MAX_GRADE_LEVEL, MIN_GRADE_LEVEL } from '../../utils/constants';
 
 const STATUS_STYLES = {
   ACTIVE: 'bg-green-50 text-green-700',
@@ -48,7 +48,7 @@ const columns = [
 const formFields = [
   { name: 'first_name', label: 'First Name', required: true },
   { name: 'last_name', label: 'Last Name', required: true },
-  { name: 'grade_level', label: 'Grade', type: 'number', required: true, min: 1, max: 8 },
+  { name: 'grade_level', label: 'Grade', type: 'number', required: true, min: MIN_GRADE_LEVEL, max: MAX_GRADE_LEVEL },
   { name: 'section', label: 'Section', type: 'select', options: SECTION_OPTIONS, placeholder: 'Select section...' },
   { name: 'gender', label: 'Gender', type: 'select', required: true, options: GENDER_OPTIONS },
   { name: 'status', label: 'Status', type: 'select', required: true, options: STATUS_OPTIONS, editOnly: true },

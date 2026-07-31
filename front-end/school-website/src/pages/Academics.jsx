@@ -16,6 +16,7 @@ const GRADE_LEVELS = [
   { grade: 'KG 1 – KG 3', ages: '4–6 years', focus: 'Play-based learning, social skills, early literacy' },
   { grade: 'Grades 1 – 4', ages: '7–10 years', focus: 'Foundation in Amharic, English, Math, Science' },
   { grade: 'Grades 5 – 8', ages: '11–14 years', focus: 'Advanced subjects, critical thinking, exam prep' },
+  { grade: 'Grades 9 – 12', ages: '15–18 years', focus: 'Secondary curriculum, national exams, university prep' },
 ]
 
 const CURRICULUM = [
@@ -74,7 +75,7 @@ export default function Academics() {
             <Badge className="mb-4">Grade Levels</Badge>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Age-Appropriate Learning</h2>
           </motion.div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {GRADE_LEVELS.map((level, i) => (
               <motion.div key={i} {...fadeUp} transition={{ delay: i * 0.1 }}>
                 <Card hover className="text-center h-full">

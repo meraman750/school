@@ -5,6 +5,7 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
+import { isValidGradeLevel, MAX_GRADE_LEVEL, MIN_GRADE_LEVEL } from '../../utils/constants';
 import { reportsClassPath, reportsListPath } from './reportsConstants';
 import useTeacherAssignedSections from '../../hooks/useTeacherAssignedSections';
 
@@ -16,7 +17,7 @@ export default function ReportsGradeSectionsPage({ gradeLevel }) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['reports', 'grade-sections', grade],
     queryFn: () => academicsSubApi.classes.ensureGradeSections(grade),
-    enabled: grade >= 1 && grade <= 8,
+    enabled: isValidGradeLevel(grade),
   });
 
   const sections = (data?.sections || []).filter(
@@ -34,9 +35,9 @@ export default function ReportsGradeSectionsPage({ gradeLevel }) {
     );
   }
 
-  if (!grade || grade < 1 || grade > 8) {
+  if (!isValidGradeLevel(grade)) {
     return (
-      <EmptyState title="Invalid grade" description="Choose a grade from 1 to 8." />
+      <EmptyState title="Invalid grade" description={`Choose a grade from ${MIN_GRADE_LEVEL} to ${MAX_GRADE_LEVEL}.`} />
     );
   }
 

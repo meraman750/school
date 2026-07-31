@@ -24,6 +24,7 @@ import Table from '../../components/ui/Table';
 import { formatDate, formatCurrency, getInitials } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
 import { canManageTeacherSalary, isAdminRole, isTeacherRole, normalizeRole } from '../../utils/roles';
+import { GRADE_OPTIONS } from '../../utils/constants';
 
 const GENDERS = [
   { value: 'M', label: 'Male' },
@@ -742,7 +743,7 @@ export default function TeacherDetailPage() {
                     label="Grade"
                     value={assignGrade}
                     onChange={(e) => setAssignGrade(e.target.value)}
-                    options={[1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({ value: String(g), label: `Grade ${g}` }))}
+                    options={GRADE_OPTIONS}
                   />
                   <Select
                     label="Section"

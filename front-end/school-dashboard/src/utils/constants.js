@@ -1,3 +1,19 @@
+export const MIN_GRADE_LEVEL = 1;
+export const MAX_GRADE_LEVEL = 12;
+export const GRADE_LEVELS = Array.from(
+  { length: MAX_GRADE_LEVEL - MIN_GRADE_LEVEL + 1 },
+  (_, index) => MIN_GRADE_LEVEL + index,
+);
+export const GRADE_OPTIONS = GRADE_LEVELS.map((grade) => ({
+  value: String(grade),
+  label: `Grade ${grade}`,
+}));
+
+export function isValidGradeLevel(grade) {
+  const value = Number(grade);
+  return Number.isFinite(value) && value >= MIN_GRADE_LEVEL && value <= MAX_GRADE_LEVEL;
+}
+
 export const APP_NAME = 'Biruk Academy';
 export const TOKEN_KEYS = {
   ACCESS: 'access_token',

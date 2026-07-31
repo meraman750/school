@@ -20,6 +20,7 @@ import {
 } from '../../services/api';
 import { toEthiopianYearOptions, CURRENT_ETHIOPIAN_YEAR } from '../../utils/ethiopianCalendar';
 import { getDisplayName } from '../../utils/formatters';
+import { isValidGradeLevel } from '../../utils/constants';
 import { REPORT_QUARTERS, reportsGradePath } from './reportsConstants';
 import useTeacherAssignedSections from '../../hooks/useTeacherAssignedSections';
 
@@ -114,13 +115,13 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
   const { data: gradeSubjects = [] } = useQuery({
     queryKey: ['subjects-by-grade', grade],
     queryFn: () => studentsApi.getSubjectsByGrade(grade),
-    enabled: grade >= 1 && grade <= 8,
+    enabled: isValidGradeLevel(grade),
   });
 
   const { data: allSubjectsData } = useQuery({
     queryKey: ['all-subjects'],
     queryFn: () => academicsSubApi.subjects.list({ page_size: 100 }),
-    enabled: grade >= 1 && grade <= 8 && (!gradeSubjects || gradeSubjects.length === 0),
+    enabled: isValidGradeLevel(grade) && (!gradeSubjects || gradeSubjects.length === 0),
   });
 
   const yearOptions = toEthiopianYearOptions(yearsData);
@@ -165,7 +166,7 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
         section,
         page_size: 100,
       }),
-    enabled: grade >= 1 && grade <= 8 && Boolean(section),
+    enabled: isValidGradeLevel(grade) && Boolean(section),
   });
 
   const students = useMemo(() => {
@@ -397,7 +398,7 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
     return <Navigate to={reportsGradePath(grade)} replace />;
   }
 
-  if (!grade || grade < 1 || grade > 8 || !section) {
+  if (!isValidGradeLevel(grade) || !section) {
     return <EmptyState title="Invalid class" description="Choose a grade and section from reports." />;
   }
 

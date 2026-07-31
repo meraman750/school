@@ -2,6 +2,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 
+from apps.core.grade_levels import GRADE_LEVEL_RANGE_MSG, is_valid_grade_level
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsStaffMember, IsSchoolAdmin
 from apps.core.teacher_scope import get_teacher_for_user, get_teacher_assigned_sections
@@ -71,8 +72,8 @@ class TeacherViewSet(BaseModelViewSet):
         except (TypeError, ValueError):
             return Response({'detail': 'grade_level is required.'}, status=400)
         section_name = (request.data.get('section') or 'A').strip()
-        if grade_level < 1 or grade_level > 8:
-            return Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+        if not is_valid_grade_level(grade_level):
+            return Response({'detail': GRADE_LEVEL_RANGE_MSG}, status=400)
 
         from apps.academics.models import AcademicYear, SchoolClass
         academic_year = AcademicYear.objects.filter(is_current=True).first()

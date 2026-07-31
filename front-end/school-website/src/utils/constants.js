@@ -79,7 +79,7 @@ export const FALLBACK_SCHOOL_INFO = {
 
 export const FALLBACK_ACHIEVEMENTS = [
   { title: 'National Excellence Award', year: '2024', description: 'Outstanding primary education in Addis Ababa.' },
-  { title: '99% Grade 8 Pass Rate', year: '2023', description: 'All graduating students passed regional examinations.' },
+  { title: '99% Grade 12 Pass Rate', year: '2023', description: 'All graduating students passed regional examinations.' },
   { title: 'Green School Certification', year: '2022', description: 'Awarded for environmental sustainability initiatives.' },
   { title: 'STEM Innovation Hub', year: '2021', description: 'Established modern science and technology laboratory.' },
 ]
@@ -128,7 +128,8 @@ export const FALLBACK_FACILITIES = [
 export const FALLBACK_PROGRAMS = [
   { name: 'Early Childhood (KG)', grades: 'KG 1 – KG 3', description: 'Play-based learning building foundational literacy and numeracy.' },
   { name: 'Lower Primary', grades: 'Grades 1 – 4', description: 'Core subjects with emphasis on Amharic, English, and mathematics.' },
-  { name: 'Upper Primary', grades: 'Grades 5 – 8', description: 'Advanced curriculum preparing students for secondary education.' },
+  { name: 'Upper Primary', grades: 'Grades 5 – 8', description: 'Advanced primary curriculum with critical thinking and exam preparation.' },
+  { name: 'Secondary', grades: 'Grades 9 – 12', description: 'Secondary education preparing students for national exams and university.' },
   { name: 'After-School Programs', grades: 'All Grades', description: 'Tutoring, clubs, sports, and cultural activities.' },
 ]
 
@@ -141,7 +142,7 @@ export const FALLBACK_BLOG = [
 export const FALLBACK_EVENTS = [
   { id: 1, title: 'Parent-Teacher Conference', date: '2025-02-15', location: 'Main Hall', description: 'Meet teachers and discuss your child\'s progress.' },
   { id: 2, title: 'Ethiopian New Year Celebration', date: '2025-09-11', location: 'School Campus', description: 'Cultural performances and traditional festivities.' },
-  { id: 3, title: 'Grade 8 Graduation Ceremony', date: '2025-07-05', location: 'Auditorium', description: 'Celebrating our graduating class of 2025.' },
+  { id: 3, title: 'Grade 12 Graduation Ceremony', date: '2025-07-05', location: 'Auditorium', description: 'Celebrating our graduating class of 2025.' },
 ]
 
 export const FALLBACK_GALLERY = [

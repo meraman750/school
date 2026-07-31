@@ -1,6 +1,6 @@
-export const EXAM_GRADE_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+﻿export { GRADE_LEVELS as EXAM_GRADE_LEVELS } from '../../utils/constants';
 
-/** Monday = 1 … Sunday = 7 */
+/** Monday = 1 ΓÇª Sunday = 7 */
 export const EXAM_WEEK_DAYS = [
   { value: 1, label: 'Monday', short: 'Mon' },
   { value: 2, label: 'Tuesday', short: 'Tue' },
@@ -27,7 +27,7 @@ export function formatTimeRange(start, end) {
   const a = toTimeInputValue(start);
   const b = toTimeInputValue(end);
   if (!a || !b) return '';
-  return `${a} – ${b}`;
+  return `${a} ΓÇô ${b}`;
 }
 
 export function defaultWeekStartMondayIso() {
@@ -42,7 +42,7 @@ export function defaultWeekStartMondayIso() {
   return `${y}-${m}-${d}`;
 }
 
-/** Map ISO date to weekday value 1 (Mon) … 7 (Sun). */
+/** Map ISO date to weekday value 1 (Mon) ΓÇª 7 (Sun). */
 export function weekdayFromIsoDate(isoDate) {
   if (!isoDate) return '1';
   const date = new Date(`${isoDate}T12:00:00`);
