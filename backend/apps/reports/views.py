@@ -92,6 +92,8 @@ class ClassStudentMarksReportView(APIView):
             }
             rows.append(row)
 
+        rows.sort(key=lambda item: (item['rank'] is None, item['rank'] or 9999, item['student_name']))
+
         if export_format == 'json':
             return Response({
                 'grade_level': grade_level,

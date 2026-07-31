@@ -15,6 +15,7 @@ from .serializers import (
     TeacherSerializer, TeacherProfileSerializer, TeacherQualificationSerializer,
     TeacherLeaveSerializer, TeacherPerformanceSerializer,
     TeacherSalaryInfoSerializer, TeacherSalaryPaymentSerializer,
+    TeacherMyPayrollSerializer,
 )
 
 
@@ -49,6 +50,21 @@ class TeacherViewSet(BaseModelViewSet):
         if not teacher:
             return Response({'detail': 'No teacher profile linked.'}, status=404)
         return Response(TeacherSerializer(teacher).data)
+
+    @action(detail=False, methods=['get'], url_path='me/payroll')
+    def my_payroll(self, request):
+        if request.user.role != 'TEACHER':
+            raise PermissionDenied('Only teachers can access their payroll.')
+        teacher = get_teacher_for_user(request.user)
+        if not teacher:
+            return Response({'detail': 'No teacher profile linked.'}, status=404)
+        teacher = Teacher.objects.select_related('salary_info').prefetch_related(
+            'salary_payments',
+        ).get(pk=teacher.pk)
+        return Response(TeacherMyPayrollSerializer(
+            teacher,
+            context={'request': request},
+        ).data)
 
     @action(detail=False, methods=['get'], url_path='assigned-sections')
     def assigned_sections(self, request):
@@ -155,3 +171,4 @@ class TeacherSalaryPaymentViewSet(BaseModelViewSet):
     permission_classes = [IsStaffMember]
     filterset_fields = ['teacher', 'status']
     ordering_fields = ['pay_period_start', 'payment_date']
+    http_method_names = ['get', 'head', 'options']

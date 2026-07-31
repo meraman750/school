@@ -49,6 +49,7 @@ const STAFF_MODULE_ACCESS = {
   library: [...ADMIN_ROLES, ...TEACHER_ROLES, ROLES.LIBRARIAN],
   documents: [...ADMIN_ROLES],
   reports: [...ADMIN_ROLES, ...TEACHER_ROLES],
+  myPayroll: [...TEACHER_ROLES],
   activity: [...ADMIN_ROLES],
   websiteContent: [...ADMIN_ROLES],
   studentFees: [...FINANCE_ROLES],
@@ -63,6 +64,7 @@ const PORTAL_MODULE_ACCESS = {
   examination: PORTAL_ROLES,
   academics: PORTAL_ROLES,
   library: PORTAL_ROLES,
+  gradeReports: PORTAL_ROLES,
   profile: PORTAL_ROLES,
 };
 

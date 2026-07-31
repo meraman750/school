@@ -33,6 +33,7 @@ export const MODULES = [
   { key: 'library', label: 'Library', path: '/library', icon: 'bookOpen' },
   { key: 'documents', label: 'Documents', path: '/documents', icon: 'folder' },
   { key: 'reports', label: 'Reports', path: '/reports', icon: 'barChart' },
+  { key: 'myPayroll', label: 'My Payroll', path: '/my-payroll', icon: 'dollar' },
   { key: 'activity', label: 'Activity', path: '/activity', icon: 'activity' },
   { key: 'websiteContent', label: 'Website Content', path: '/website-content', icon: 'globe' },
   { key: 'studentFees', label: 'Student Fees', path: '/finance/student-fees', icon: 'users' },
@@ -46,6 +47,7 @@ export const PORTAL_MODULES = [
   { key: 'examination', label: 'Exams', path: '/portal/examination', icon: 'fileText' },
   { key: 'academics', label: 'Materials', path: '/portal/academics', icon: 'book' },
   { key: 'library', label: 'Library', path: '/portal/library', icon: 'bookOpen' },
+  { key: 'gradeReports', label: 'Grade Reports', path: '/portal/grade-reports', icon: 'barChart' },
   { key: 'profile', label: 'My Profile', path: '/portal/profile', icon: 'users' },
 ];
 

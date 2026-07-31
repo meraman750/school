@@ -1,5 +1,6 @@
 from django.db.models import Sum, Count
 from django.utils import timezone
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,6 +22,44 @@ from .serializers import (
     FeeStructureSerializer, InvoiceSerializer, PaymentSerializer,
     ReceiptSerializer, ScholarshipSerializer, DiscountSerializer,
 )
+
+
+def _parse_paid_flag(raw):
+    if isinstance(raw, bool):
+        return raw
+    if str(raw).lower() in ('true', '1', 'yes'):
+        return True
+    if str(raw).lower() in ('false', '0', 'no'):
+        return False
+    raise ValueError('paid must be true or false.')
+
+
+def _parse_compliance_payment_data(request, paid, payment_type='student'):
+    if not paid:
+        return None
+    data = {
+        'approved_by_name': (request.data.get('approved_by_name') or '').strip(),
+        'beneficiary_name': (request.data.get('beneficiary_name') or '').strip(),
+        'payer_party_name': (request.data.get('payer_party_name') or '').strip(),
+        'payment_method': (request.data.get('payment_method') or '').strip(),
+        'notes': (request.data.get('notes') or '').strip(),
+        'ticket_receipt': request.FILES.get('ticket_receipt'),
+    }
+    if payment_type == 'teacher':
+        data['salary_raw'] = {
+            'base_salary': request.data.get('base_salary'),
+            'housing_allowance': request.data.get('housing_allowance'),
+            'transport_allowance': request.data.get('transport_allowance'),
+            'other_allowances': request.data.get('other_allowances'),
+            'tax_deduction': request.data.get('tax_deduction'),
+            'pension_deduction': request.data.get('pension_deduction'),
+            'other_deductions': request.data.get('other_deductions'),
+            'net_monthly_salary': request.data.get('net_monthly_salary'),
+            'bank_name': (request.data.get('bank_name') or '').strip(),
+            'bank_account': (request.data.get('bank_account') or '').strip(),
+            'payment_method': (request.data.get('payment_method') or '').strip(),
+        }
+    return data
 
 
 class FeeStructureViewSet(BaseModelViewSet):
@@ -104,11 +143,12 @@ class FinancialReportsView(APIView):
 class FinanceStudentMonthlyComplianceView(APIView):
     """Track whether each active student paid required fees per calendar month."""
     permission_classes = [IsFinanceStaff]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
         year = int(request.query_params.get('year', timezone.now().year))
         students = Student.objects.filter(is_deleted=False, status='ACTIVE').order_by('last_name', 'first_name')
-        rows = [build_student_compliance_row(student, year) for student in students]
+        rows = [build_student_compliance_row(student, year, request.user) for student in students]
         return Response({'year': year, 'students': rows})
 
     def post(self, request):
@@ -121,29 +161,33 @@ class FinanceStudentMonthlyComplianceView(APIView):
             return Response({'detail': 'student_id, year, month, and paid are required.'}, status=400)
         if month < 1 or month > 12:
             return Response({'detail': 'month must be between 1 and 12.'}, status=400)
-        if not isinstance(paid, bool):
-            if str(paid).lower() in ('true', '1', 'yes'):
-                paid = True
-            elif str(paid).lower() in ('false', '0', 'no'):
-                paid = False
-            else:
-                return Response({'detail': 'paid must be true or false.'}, status=400)
+        try:
+            paid = _parse_paid_flag(paid)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=400)
         try:
             student = Student.objects.get(pk=student_id, is_deleted=False)
         except Student.DoesNotExist:
             return Response({'detail': 'Student not found.'}, status=404)
-        set_student_month_paid(student, year, month, paid, request.user)
-        return Response(build_student_compliance_row(student, year))
+        payment_data = _parse_compliance_payment_data(request, paid)
+        try:
+            set_student_month_paid(student, year, month, paid, request.user, payment_data)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=400)
+        return Response(build_student_compliance_row(student, year, request.user))
 
 
 class FinanceTeacherPayrollComplianceView(APIView):
     """Track whether each active teacher received salary per calendar month."""
     permission_classes = [IsFinanceStaff]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
         year = int(request.query_params.get('year', timezone.now().year))
-        teachers = Teacher.objects.filter(is_deleted=False, status='ACTIVE').order_by('last_name', 'first_name')
-        rows = [build_teacher_compliance_row(teacher, year) for teacher in teachers]
+        teachers = Teacher.objects.filter(is_deleted=False, status='ACTIVE').select_related(
+            'salary_info',
+        ).order_by('last_name', 'first_name')
+        rows = [build_teacher_compliance_row(teacher, year, request.user) for teacher in teachers]
         return Response({'year': year, 'teachers': rows})
 
     def post(self, request):
@@ -156,16 +200,17 @@ class FinanceTeacherPayrollComplianceView(APIView):
             return Response({'detail': 'teacher_id, year, month, and paid are required.'}, status=400)
         if month < 1 or month > 12:
             return Response({'detail': 'month must be between 1 and 12.'}, status=400)
-        if not isinstance(paid, bool):
-            if str(paid).lower() in ('true', '1', 'yes'):
-                paid = True
-            elif str(paid).lower() in ('false', '0', 'no'):
-                paid = False
-            else:
-                return Response({'detail': 'paid must be true or false.'}, status=400)
+        try:
+            paid = _parse_paid_flag(paid)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=400)
         try:
             teacher = Teacher.objects.get(pk=teacher_id, is_deleted=False)
         except Teacher.DoesNotExist:
             return Response({'detail': 'Teacher not found.'}, status=404)
-        set_teacher_month_paid(teacher, year, month, paid, request.user)
-        return Response(build_teacher_compliance_row(teacher, year))
+        payment_data = _parse_compliance_payment_data(request, paid, payment_type='teacher')
+        try:
+            set_teacher_month_paid(teacher, year, month, paid, request.user, payment_data)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=400)
+        return Response(build_teacher_compliance_row(teacher, year, request.user))

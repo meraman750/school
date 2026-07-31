@@ -33,6 +33,23 @@ function StatusBadge({ published }) {
   );
 }
 
+function ActionButton({ onClick, children, danger = false, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl p-2.5 transition-colors touch-manipulation ${
+        danger
+          ? 'text-gray-400 hover:bg-red-50 hover:text-red-600 active:bg-red-100'
+          : 'text-gray-400 hover:bg-primary/10 hover:text-primary active:bg-primary/15'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function ContentTabPanel({
   tabKey,
   category,
@@ -44,6 +61,7 @@ function ContentTabPanel({
   renderForm,
   requireFileOnCreate = false,
   getRowId,
+  validateBeforeSubmit,
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -54,7 +72,7 @@ function ContentTabPanel({
   const { data, isLoading, isError } = useListQuery(queryKey, api.list, params);
   const rows = useMemo(() => extractList(data), [data]);
 
-  const { register, handleSubmit, reset, watch, setValue } = useForm({ defaultValues });
+  const { register, handleSubmit, reset } = useForm({ defaultValues });
 
   const createMutation = useCreateMutation(queryKey, api.create, {
     onSuccess: () => {
@@ -82,6 +100,13 @@ function ContentTabPanel({
     onSuccess: () => setDeleteTarget(null),
   });
 
+  const openCreateModal = () => {
+    setEditing(null);
+    setFile(null);
+    reset(defaultValues);
+    setModalOpen(true);
+  };
+
   useEffect(() => {
     if (!modalOpen) return;
     reset(editing ? {
@@ -105,29 +130,31 @@ function ContentTabPanel({
     {
       key: 'actions',
       header: 'Actions',
-      className: 'text-right',
+      className: 'text-right whitespace-nowrap',
       render: (row) => (
-        <div className="flex justify-end gap-1">
-          <button
-            type="button"
+        <div className="flex justify-end gap-1 sm:gap-2">
+          <ActionButton
+            label="Edit"
             onClick={() => { setEditing(row); setModalOpen(true); }}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-primary/10 hover:text-primary"
           >
-            <FiEdit2 />
-          </button>
-          <button
-            type="button"
+            <FiEdit2 className="text-base" />
+          </ActionButton>
+          <ActionButton
+            label="Delete"
+            danger
             onClick={() => setDeleteTarget(row)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
           >
-            <FiTrash2 />
-          </button>
+            <FiTrash2 className="text-base" />
+          </ActionButton>
         </div>
       ),
     },
   ];
 
   const onSubmit = (values) => {
+    if (validateBeforeSubmit?.(values, { editing, file })) {
+      return;
+    }
     if (!values.title?.trim()) {
       toast.error('Title is required.');
       return;
@@ -144,10 +171,16 @@ function ContentTabPanel({
     createMutation.mutate(payload);
   };
 
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => { setEditing(null); setModalOpen(true); }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <Button
+          type="button"
+          className="w-full sm:w-auto"
+          onClick={openCreateModal}
+        >
           <FiPlus /> Add new
         </Button>
       </div>
@@ -157,21 +190,39 @@ function ContentTabPanel({
       ) : isError ? (
         <EmptyState title="Failed to load content" description="Please try again." />
       ) : rows.length === 0 ? (
-        <EmptyState title="No items yet" description="Create the first entry for the public website." />
+        <EmptyState
+          title="No items yet"
+          description="Create the first entry for the public website."
+          actionLabel="Add new"
+          onAction={openCreateModal}
+        />
       ) : (
         <Table columns={tableColumns} data={rows} />
       )}
 
       <Modal
-        open={modalOpen}
-        onClose={() => { setModalOpen(false); setEditing(null); }}
+        isOpen={modalOpen}
+        onClose={() => { setModalOpen(false); setEditing(null); setFile(null); }}
         title={editing ? 'Edit item' : 'Add item'}
+        size="lg"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {renderForm({ register, watch, setValue, file, setFile, editing, category })}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="submit" loading={createMutation.isPending || updateMutation.isPending}>
+          {renderForm({ register, file, setFile, editing, category })}
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full sm:w-auto"
+              onClick={() => { setModalOpen(false); setEditing(null); setFile(null); }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              loading={isSaving}
+              disabled={isSaving}
+            >
               {editing ? 'Save changes' : 'Create'}
             </Button>
           </div>
@@ -179,11 +230,11 @@ function ContentTabPanel({
       </Modal>
 
       <ConfirmDialog
-        open={Boolean(deleteTarget)}
+        isOpen={Boolean(deleteTarget)}
         title="Delete item?"
         message="This will remove the content from the public website."
         onConfirm={() => deleteMutation.mutate(getRowId(deleteTarget))}
-        onCancel={() => setDeleteTarget(null)}
+        onClose={() => setDeleteTarget(null)}
         loading={deleteMutation.isPending}
       />
     </div>
@@ -204,16 +255,16 @@ export default function WebsiteContentPage() {
       </div>
 
       <Card>
-        <div className="flex flex-wrap gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+        <div className="grid grid-cols-2 gap-2 border-b border-gray-100 p-3 sm:flex sm:flex-wrap sm:gap-2 sm:p-4 dark:border-gray-800">
           {WEBSITE_TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`rounded-xl px-4 py-2 text-xs font-semibold transition-colors ${
+              className={`min-h-11 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors touch-manipulation sm:px-4 ${
                 activeTab === tab.key
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary dark:bg-gray-800 dark:text-gray-300'
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-gray-50 text-gray-600 hover:bg-primary/10 hover:text-primary active:bg-primary/15 dark:bg-gray-800 dark:text-gray-300'
               }`}
             >
               {tab.label}
@@ -221,7 +272,7 @@ export default function WebsiteContentPage() {
           ))}
         </div>
 
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {(activeTab === 'blog' || activeTab === 'announcements') && (
             <ContentTabPanel
               tabKey={activeTab}
@@ -230,6 +281,13 @@ export default function WebsiteContentPage() {
               queryKey={['website-content', 'blog', currentTab.category]}
               getRowId={(row) => row.slug}
               buildPayload={(values, uploadedFile, cat) => buildBlogFormData(values, uploadedFile, cat)}
+              validateBeforeSubmit={(values) => {
+                if (!values.excerpt?.trim() && !values.content?.trim()) {
+                  toast.error('Add a summary or full content.');
+                  return true;
+                }
+                return false;
+              }}
               defaultValues={{
                 title: '',
                 excerpt: '',
@@ -247,19 +305,24 @@ export default function WebsiteContentPage() {
                 <>
                   <Input label="Title" {...register('title', { required: true })} />
                   <Input label="Author" placeholder="Biruk Academy" {...register('author_name')} />
-                  <Textarea label="Summary" rows={3} {...register('excerpt')} />
-                  <Textarea label="Full content" rows={5} {...register('content')} />
+                  <Textarea label="Summary" rows={3} placeholder="Short summary shown on the website" {...register('excerpt')} />
+                  <Textarea label="Full content" rows={5} placeholder="Optional longer article text" {...register('content')} />
                   <Input label="Tags" placeholder="news, community" {...register('tags')} />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" {...register('is_published')} className="rounded border-gray-300" />
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm touch-manipulation">
+                    <input type="checkbox" {...register('is_published')} className="h-4 w-4 rounded border-gray-300" />
                     Publish on website
                   </label>
                   <div>
-                    <p className="mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                      Featured image {editing ? '(optional)' : ''}
+                    <p className="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                      Featured image {editing ? '(optional)' : '(optional)'}
                     </p>
-                    <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                    {file && <p className="mt-1 text-xs text-gray-500">{file.name}</p>}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2.5 file:text-xs file:font-semibold file:text-primary"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                    {file && <p className="mt-2 text-xs text-gray-500">{file.name}</p>}
                   </div>
                 </>
               )}
@@ -273,6 +336,17 @@ export default function WebsiteContentPage() {
               queryKey={['website-content', 'events']}
               getRowId={(row) => row.id}
               buildPayload={(values, uploadedFile) => buildEventFormData(values, uploadedFile)}
+              validateBeforeSubmit={(values) => {
+                if (!values.description?.trim()) {
+                  toast.error('Description is required.');
+                  return true;
+                }
+                if (!values.start_date) {
+                  toast.error('Start date and time are required.');
+                  return true;
+                }
+                return false;
+              }}
               defaultValues={{
                 title: '',
                 description: '',
@@ -293,13 +367,19 @@ export default function WebsiteContentPage() {
                   <Input label="Location" {...register('location')} />
                   <Input label="Start date & time" type="datetime-local" {...register('start_date', { required: true })} />
                   <Input label="End date & time" type="datetime-local" {...register('end_date')} />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" {...register('is_published')} className="rounded border-gray-300" />
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm touch-manipulation">
+                    <input type="checkbox" {...register('is_published')} className="h-4 w-4 rounded border-gray-300" />
                     Publish on website
                   </label>
                   <div>
-                    <p className="mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Event image (optional)</p>
-                    <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                    <p className="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">Event image (optional)</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2.5 file:text-xs file:font-semibold file:text-primary"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                    {file && <p className="mt-2 text-xs text-gray-500">{file.name}</p>}
                   </div>
                 </>
               )}
@@ -336,16 +416,21 @@ export default function WebsiteContentPage() {
                     {...register('category')}
                   />
                   <Input label="Display order" type="number" min="0" {...register('order')} />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" {...register('is_published')} className="rounded border-gray-300" />
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm touch-manipulation">
+                    <input type="checkbox" {...register('is_published')} className="h-4 w-4 rounded border-gray-300" />
                     Publish on website
                   </label>
                   <div>
-                    <p className="mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    <p className="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
                       Image {editing ? '(leave empty to keep current)' : '(required)'}
                     </p>
-                    <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                    {file && <p className="mt-1 text-xs text-gray-500">{file.name}</p>}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2.5 file:text-xs file:font-semibold file:text-primary"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    />
+                    {file && <p className="mt-2 text-xs text-gray-500">{file.name}</p>}
                   </div>
                 </>
               )}

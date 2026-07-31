@@ -48,6 +48,21 @@ function computeAverage(entries) {
   return Math.round((sum / scores.length) * 100) / 100;
 }
 
+function computeSum(entries) {
+  const scores = entries.map((e) => parseScore(e.score)).filter((s) => s !== null);
+  if (!scores.length) return null;
+  return Math.round(scores.reduce((a, b) => a + b, 0) * 100) / 100;
+}
+
+function sumFromReport(report) {
+  if (!report?.entries?.length) return null;
+  const scores = report.entries
+    .map((entry) => Number(entry.score))
+    .filter((score) => !Number.isNaN(score));
+  if (!scores.length) return null;
+  return Math.round(scores.reduce((a, b) => a + b, 0) * 100) / 100;
+}
+
 function buildEntriesPayload(rows) {
   return rows
     .map((row) => {
@@ -171,7 +186,7 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
 
   const students = useMemo(() => {
     const list = studentsData?.results || studentsData || [];
-    return [...list].sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
+    return [...list];
   }, [studentsData]);
 
   const { data: reportsData, isLoading: reportsLoading } = useQuery({
@@ -268,6 +283,27 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
     return { rankMap, savedRankMap, classSize: withAvg.length };
   }, [students, studentMarks, reportsByStudent]);
 
+  const getStudentRank = useCallback((student) => {
+    const report = reportsByStudent[student.id];
+    const previewRank = rankPreview.rankMap[student.id];
+    const savedRank = report?.class_rank ?? rankPreview.savedRankMap[student.id];
+    return previewRank ?? savedRank ?? null;
+  }, [rankPreview, reportsByStudent]);
+
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => {
+      const rankA = getStudentRank(a);
+      const rankB = getStudentRank(b);
+      if (rankA == null && rankB == null) {
+        return getDisplayName(a).localeCompare(getDisplayName(b));
+      }
+      if (rankA == null) return 1;
+      if (rankB == null) return -1;
+      if (rankA !== rankB) return rankA - rankB;
+      return getDisplayName(a).localeCompare(getDisplayName(b));
+    });
+  }, [students, getStudentRank]);
+
   const persistStudent = useCallback(async (studentId) => {
     if (!academicYear || !quarter) return;
     if (persistInFlightRef.current[studentId]) return;
@@ -298,6 +334,8 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
         lastSavedRef.current[studentId] = signature;
       }
       await queryClient.invalidateQueries({ queryKey: reportsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['portal-grade-reports'] });
     } catch (err) {
       const msg = await readApiError(err, 'Could not save marks');
       toast.error(typeof msg === 'string' ? msg : 'Could not save marks');
@@ -465,15 +503,18 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
         />
       ) : (
         <ul className="flex flex-col gap-3">
-          {students.map((student) => {
+          {sortedStudents.map((student) => {
             const entries = studentMarks[student.id] || [newEntryRow()];
             const average = computeAverage(entries);
+            const totalSum = computeSum(entries);
             const report = reportsByStudent[student.id];
             const previewRank = rankPreview.rankMap[student.id];
             const savedRank = report?.class_rank ?? rankPreview.savedRankMap[student.id];
             const rank = previewRank ?? savedRank;
             const classSize = report?.class_size || rankPreview.classSize;
             const isExpanded = expandedStudentId === student.id;
+            const displayAverage = average ?? (report?.overall_average != null ? Number(report.overall_average) : null);
+            const displaySum = totalSum ?? sumFromReport(report);
             return (
               <li key={student.id}>
                 <Card padding={false} className="overflow-hidden">
@@ -485,12 +526,15 @@ export default function ReportsClassPage({ gradeLevel, sectionName }) {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
-                        {getDisplayName(student)}
+                        {rank ? `${rank}. ` : ''}{getDisplayName(student)}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                       <Badge variant="default">
-                        Avg: {average != null ? average : (report?.overall_average ?? '—')}
+                        Sum: {displaySum != null ? displaySum : '—'}
+                      </Badge>
+                      <Badge variant="default">
+                        Avg: {displayAverage != null ? displayAverage : '—'}
                       </Badge>
                       <Badge variant="primary">
                         Rank: {rank ? `${rank}${classSize ? ` / ${classSize}` : ''}` : '—'}

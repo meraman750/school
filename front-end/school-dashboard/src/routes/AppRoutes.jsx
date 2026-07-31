@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { canAccessModule, getHomePath, normalizeRole } from '../utils/roles';
-import { hasDashboardEntry, redirectToPublicSite } from '../utils/dashboardAccess';
+import DashboardEntryGuard from '../components/routing/DashboardEntryGuard';
 import DashboardLayout from '../layouts/DashboardLayout';
 import PortalLayout from '../layouts/PortalLayout';
 import { StaffLayoutGuard, PortalLayoutGuard } from '../components/routing/LayoutGuards';
@@ -34,6 +34,8 @@ import TeacherPayrollPage from '../pages/finance/TeacherPayrollPage';
 import ActivityPage from '../pages/activity/ActivityPage';
 import WebsiteContentPage from '../pages/website/WebsiteContentPage';
 import PortalProfilePage from '../pages/portal/PortalProfilePage';
+import PortalGradeReportsPage from '../pages/portal/PortalGradeReportsPage';
+import MyPayrollPage from '../pages/payroll/MyPayrollPage';
 
 function ProtectedGuard({ children }) {
   const { isAuthenticated } = useAuth();
@@ -54,18 +56,15 @@ function GuestGuard({ children }) {
   if (isAuthenticated) {
     return <Navigate to={getHomePath(normalizeRole(user?.role))} replace />;
   }
-  if (!hasDashboardEntry()) {
-    redirectToPublicSite();
-    return null;
-  }
   return children;
 }
 
 export default function AppRoutes() {
   return (
-    <>
-      <Toaster position="top-right" toastOptions={{ style: { fontSize: '13px', borderRadius: '12px' } }} />
-      <Routes>
+    <DashboardEntryGuard>
+      <>
+        <Toaster position="top-right" toastOptions={{ style: { fontSize: '13px', borderRadius: '12px' } }} />
+        <Routes>
         <Route path="/login" element={<GuestGuard><Login /></GuestGuard>} />
         <Route path="/forgot-password" element={<GuestGuard><ForgotPassword /></GuestGuard>} />
         <Route path="/reset-password" element={<GuestGuard><ResetPassword /></GuestGuard>} />
@@ -82,6 +81,7 @@ export default function AppRoutes() {
           <Route path="academics/:typeSlug/subject/:subjectId/view/:itemId" element={<RoleGuard moduleKey="academics"><AcademicsItemViewerPage /></RoleGuard>} />
           <Route path="academics/:typeSlug/subject/:subjectId" element={<RoleGuard moduleKey="academics"><AcademicsSubjectItemsPage /></RoleGuard>} />
           <Route path="library" element={<RoleGuard moduleKey="library"><LibraryPage /></RoleGuard>} />
+          <Route path="grade-reports" element={<RoleGuard moduleKey="gradeReports"><PortalGradeReportsPage /></RoleGuard>} />
           <Route path="profile" element={<RoleGuard moduleKey="profile"><PortalProfilePage /></RoleGuard>} />
         </Route>
 
@@ -106,6 +106,7 @@ export default function AppRoutes() {
           <Route path="reports" element={<RoleGuard moduleKey="reports"><ReportsPage /></RoleGuard>} />
           <Route path="reports/grade/:gradeLevel/section/:sectionName" element={<RoleGuard moduleKey="reports"><ReportsClassRoute /></RoleGuard>} />
           <Route path="reports/grade/:gradeLevel" element={<RoleGuard moduleKey="reports"><ReportsGradeRoute /></RoleGuard>} />
+          <Route path="my-payroll" element={<RoleGuard moduleKey="myPayroll"><MyPayrollPage /></RoleGuard>} />
           <Route path="activity" element={<RoleGuard moduleKey="activity"><ActivityPage /></RoleGuard>} />
           <Route path="website-content" element={<RoleGuard moduleKey="websiteContent"><WebsiteContentPage /></RoleGuard>} />
           <Route path="finance/student-fees" element={<RoleGuard moduleKey="studentFees"><StudentFeesPage /></RoleGuard>} />
@@ -115,7 +116,8 @@ export default function AppRoutes() {
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
+        </Routes>
+      </>
+    </DashboardEntryGuard>
   );
 }

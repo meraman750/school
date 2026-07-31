@@ -5,12 +5,13 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
-  FiArrowLeft, FiPhone, FiUser, FiBook, FiFileText, FiPlus, FiEdit2,
+  FiArrowLeft, FiPhone, FiUser, FiBook, FiPlus, FiEdit2,
 } from 'react-icons/fi';
 import {
-  studentsApi, studentGradeReportsApi, studentEnrollmentApi, studentNotesApi,
+  studentsApi, studentEnrollmentApi, studentNotesApi,
   studentGuardiansApi, studentMedicalApi, academicsSubApi,
 } from '../../services/api';
+import GradeReportsList from '../../components/gradeReports/GradeReportsList';
 import Card, { CardHeader } from '../../components/ui/Card';
 import { TableSkeleton } from '../../components/ui/Skeleton';
 import EmptyState from '../../components/ui/EmptyState';
@@ -31,13 +32,6 @@ import {
   normalizeRole,
 } from '../../utils/roles';
 import { GRADE_OPTIONS } from '../../utils/constants';
-
-const QUARTERS = [
-  { value: '1', label: 'Quarter 1' },
-  { value: '2', label: 'Quarter 2' },
-  { value: '3', label: 'Quarter 3' },
-  { value: '4', label: 'Quarter 4' },
-];
 
 const SECTIONS = ['A', 'B', 'C', 'D'].map((s) => ({ value: s, label: `Section ${s}` }));
 const GENDERS = [
@@ -763,150 +757,6 @@ function StudentNoteModal({ isOpen, onClose, student, note, onSuccess }) {
   );
 }
 
-function GradeReportModal({ isOpen, onClose, student, onSuccess }) {
-  const { register, handleSubmit, watch, reset } = useForm({
-    defaultValues: {
-      academic_year: '',
-      grade_level: '',
-      quarter: '',
-      teacher_remarks: '',
-      principal_remarks: '',
-    },
-  });
-
-  const selectedGrade = watch('grade_level');
-  const selectedYear = watch('academic_year');
-
-  const { data: yearsData } = useQuery({
-    queryKey: ['academic-years'],
-    queryFn: () => academicsSubApi.years.list(),
-    enabled: isOpen,
-  });
-
-  const { data: curriculumSubjects = [] } = useQuery({
-    queryKey: ['subjects-by-grade', selectedGrade],
-    queryFn: () => studentsApi.getSubjectsByGrade(selectedGrade),
-    enabled: isOpen && Boolean(selectedGrade),
-  });
-
-  const enrollmentSubjects = student?.enrollment_records?.find(
-    (r) => String(r.academic_year) === String(selectedYear)
-      && String(r.grade_level) === String(selectedGrade),
-  )?.subjects;
-
-  const subjects = enrollmentSubjects?.length ? enrollmentSubjects : curriculumSubjects;
-
-  const [scores, setScores] = useState({});
-
-  const yearOptions = toEthiopianYearOptions(yearsData);
-  const defaultReportYear = yearOptions.find((y) => y.label === CURRENT_ETHIOPIAN_YEAR) || yearOptions[0];
-
-  useEffect(() => {
-    if (isOpen && student) {
-      reset({
-        academic_year: defaultReportYear?.value || '',
-        grade_level: student.grade_level ? String(student.grade_level) : '',
-        quarter: '',
-        teacher_remarks: '',
-        principal_remarks: '',
-      });
-      setScores({});
-    }
-  }, [isOpen, student, defaultReportYear?.value, reset]);
-
-  useEffect(() => {
-    setScores({});
-  }, [selectedGrade]);
-
-  const createMutation = useMutation({
-    mutationFn: (payload) => studentGradeReportsApi.create(payload),
-    onSuccess: () => {
-      toast.success('Grade report saved');
-      onSuccess();
-      onClose();
-    },
-    onError: (err) => toast.error(getApiError(err, 'Failed to save report')),
-  });
-
-  const onSubmit = (data) => {
-    if (!data.academic_year || !data.grade_level || !data.quarter) {
-      toast.error('Please select academic year, grade, and quarter');
-      return;
-    }
-
-    const entries = subjects
-      .map((s) => ({
-        subject: s.id,
-        score: Number(scores[s.id]),
-        remarks: '',
-      }))
-      .filter((e) => !Number.isNaN(e.score) && e.score >= 0);
-
-    if (!entries.length) {
-      toast.error('Enter at least one subject score');
-      return;
-    }
-
-    createMutation.mutate({
-      student: student.id,
-      academic_year: Number(data.academic_year),
-      grade_level: Number(data.grade_level),
-      quarter: Number(data.quarter),
-      teacher_remarks: data.teacher_remarks || '',
-      principal_remarks: data.principal_remarks || '',
-      entries,
-    });
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add Grade Report" size="lg">
-      <form onSubmit={handleSubmit(onSubmit, onFormInvalid)} className="space-y-4">
-        {!yearOptions.length && (
-          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">No academic years found. Create one under Academics first.</p>
-        )}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Select label="Academic Year (E.C.)" options={yearOptions} {...register('academic_year', { required: true })} />
-          <Select label="Grade" options={GRADE_OPTIONS} placeholder={false} {...register('grade_level', { required: true })} />
-          <Select label="Quarter" options={QUARTERS} {...register('quarter', { required: true })} />
-        </div>
-
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-            Subject Scores (0–100) — Grade {selectedGrade || '—'}
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {subjects.map((subject) => (
-              <Input
-                key={subject.id}
-                label={`${subject.name} (${subject.code})`}
-                type="number"
-                min={0}
-                max={100}
-                value={scores[subject.id] ?? ''}
-                onChange={(e) => setScores((prev) => ({ ...prev, [subject.id]: e.target.value }))}
-                onKeyDown={(e) => {
-                  if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault();
-                }}
-              />
-            ))}
-          </div>
-          {!subjects.length && selectedGrade && (
-            <p className="text-xs text-gray-500">No subjects for this grade. Add subjects under enrollment or Academics.</p>
-          )}
-        </div>
-
-        <Textarea label="Teacher Remarks" rows={2} {...register('teacher_remarks')} />
-        <Textarea label="Principal Remarks" rows={2} {...register('principal_remarks')} />
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" loading={createMutation.isPending} disabled={!yearOptions.length}>Save Report</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
 export default function StudentDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
@@ -915,7 +765,6 @@ export default function StudentDetailPage() {
   const billingOnly = isStudentBillingView(role);
   const canEditDemographics = canEditStudentDemographics(role);
   const canEditAcademic = canEditStudentAcademic(role);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [personalModal, setPersonalModal] = useState(false);
   const [academicModal, setAcademicModal] = useState(false);
@@ -934,6 +783,7 @@ export default function StudentDetailPage() {
   const { data: student, isLoading, isError } = useQuery({
     queryKey: ['students', id, 'profile'],
     queryFn: () => studentsApi.getProfile(id),
+    refetchOnWindowFocus: true,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['students', id, 'profile'] });
@@ -1002,11 +852,6 @@ export default function StudentDetailPage() {
             </span>
           </div>
         </div>
-        {!billingOnly && canEditAcademic && (
-          <Button size="sm" onClick={() => setReportModalOpen(true)}>
-            <FiPlus /> Add Grade Report
-          </Button>
-        )}
       </motion.div>
 
       <div className="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
@@ -1229,80 +1074,23 @@ export default function StudentDetailPage() {
               )}
             </Card>
           )) : (
-            <EmptyState title="No subject history" description="Add an enrollment record or grade report to build subject history." />
+            <EmptyState title="No subject history" description="Add an enrollment record to build subject history." />
           )}
         </div>
       )}
 
       {activeTab === 'reports' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Grade Reports</h3>
-              <p className="text-xs text-gray-500">Quarterly performance preserved for every year and grade</p>
-            </div>
-            {canEditAcademic && (
-            <Button size="sm" variant="outline" onClick={() => setReportModalOpen(true)}>
-              <FiFileText /> New Report
-            </Button>
-            )}
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Grade Reports</h3>
+            <p className="text-xs text-gray-500">
+              Reports are created by the homeroom teacher in Reports and appear here automatically after they are saved.
+            </p>
           </div>
-
-          {student.grade_reports?.length ? (
-            student.grade_reports.map((report) => (
-              <Card key={report.id} padding>
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {report.academic_year_name} · Grade {report.grade_level} · {report.quarter_label}
-                    </p>
-                    <p className="text-xs text-gray-500">Recorded {formatDate(report.created_at)}</p>
-                  </div>
-                  <div className="rounded-xl bg-primary/10 px-4 py-2 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Average</p>
-                    <p className="text-xl font-black text-primary">{Number(report.overall_average).toFixed(1)}%</p>
-                    {report.rank_display && (
-                      <p className="mt-1 text-xs font-semibold text-gray-600">Rank: {report.rank_display}</p>
-                    )}
-                  </div>
-                </div>
-                <Table
-                  columns={[
-                    { key: 'subject', header: 'Subject', render: (r) => r.subject_name },
-                    { key: 'score', header: 'Score', render: (r) => <span className="font-mono font-bold">{r.score}%</span> },
-                    { key: 'grade', header: 'Grade', render: (r) => (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold dark:bg-gray-800">{r.grade_letter}</span>
-                    )},
-                    { key: 'remarks', header: 'Remarks', render: (r) => r.remarks || '—' },
-                  ]}
-                  data={report.entries || []}
-                />
-                {(report.teacher_remarks || report.principal_remarks) && (
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {report.teacher_remarks && (
-                      <div className="rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-800/50">
-                        <p className="text-[10px] font-bold uppercase text-gray-500">Teacher Remarks</p>
-                        <p className="mt-1 text-gray-700 dark:text-gray-300">{report.teacher_remarks}</p>
-                      </div>
-                    )}
-                    {report.principal_remarks && (
-                      <div className="rounded-lg bg-gray-50 p-3 text-sm dark:bg-gray-800/50">
-                        <p className="text-[10px] font-bold uppercase text-gray-500">Principal Remarks</p>
-                        <p className="mt-1 text-gray-700 dark:text-gray-300">{report.principal_remarks}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            ))
-          ) : (
-            <EmptyState
-              title="No grade reports yet"
-              description="Add a quarterly grade report for this student."
-              actionLabel={canEditAcademic ? 'Add Grade Report' : undefined}
-              onAction={canEditAcademic ? () => setReportModalOpen(true) : undefined}
-            />
-          )}
+          <GradeReportsList
+            reports={student.grade_reports || []}
+            emptyDescription="No grade reports yet. The homeroom teacher publishes quarterly reports from the Reports module."
+          />
         </div>
       )}
 
@@ -1365,12 +1153,6 @@ export default function StudentDetailPage() {
         </div>
       )}
 
-      <GradeReportModal
-        isOpen={reportModalOpen}
-        onClose={() => setReportModalOpen(false)}
-        student={student}
-        onSuccess={invalidate}
-      />
       <PersonalEditModal isOpen={personalModal} onClose={() => setPersonalModal(false)} student={student} onSuccess={invalidate} />
       <AcademicEditModal isOpen={academicModal} onClose={() => setAcademicModal(false)} student={student} onSuccess={invalidate} />
       <AddressEditModal isOpen={addressModal} onClose={() => setAddressModal(false)} student={student} onSuccess={invalidate} />

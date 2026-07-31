@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiClock, FiFileText, FiBook, FiBookOpen, FiUsers, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { FiClock, FiFileText, FiBook, FiBookOpen, FiUsers, FiLogOut, FiMenu, FiX, FiBarChart2 } from 'react-icons/fi';
 import { APP_NAME, PORTAL_MODULES } from '../utils/constants';
 import { canAccessModule, normalizeRole, ROLE_LABELS } from '../utils/roles';
 import { useAuth } from '../context/AuthContext';
+import { redirectToPublicSite } from '../utils/dashboardAccess';
 import { getInitials } from '../utils/formatters';
 
 const ICON_MAP = {
@@ -12,12 +13,12 @@ const ICON_MAP = {
   book: FiBook,
   bookOpen: FiBookOpen,
   users: FiUsers,
+  barChart: FiBarChart2,
 };
 
 export default function PortalLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const role = normalizeRole(user?.role);
   const visibleModules = PORTAL_MODULES.filter((m) => canAccessModule(role, m.key));
@@ -25,7 +26,7 @@ export default function PortalLayout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    redirectToPublicSite();
   };
 
   return (

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi, tokenStorage } from '../services/api';
-import { ensureDashboardEntry } from '../utils/dashboardAccess';
+import { clearDashboardEntry } from '../utils/dashboardAccess';
 
 const AuthContext = createContext(null);
 
@@ -73,7 +73,7 @@ export function AuthProvider({ children }) {
       /* ignore logout errors */
     } finally {
       tokenStorage.clear();
-      ensureDashboardEntry();
+      clearDashboardEntry();
       setUser(null);
     }
   }, []);

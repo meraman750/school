@@ -60,6 +60,11 @@ class BlogPostSerializer(serializers.ModelSerializer):
             return 'Announcement'
         return 'News'
 
+    def validate_is_published(self, value):
+        if isinstance(value, str):
+            return value.lower() in ('true', '1', 'yes', 'on')
+        return bool(value)
+
     def validate(self, attrs):
         title = attrs.get('title', getattr(self.instance, 'title', None))
         if not attrs.get('slug') and title:
@@ -110,6 +115,11 @@ class EventSerializer(serializers.ModelSerializer):
     def get_date(self, obj):
         return obj.start_date.isoformat() if obj.start_date else None
 
+    def validate_is_published(self, value):
+        if isinstance(value, str):
+            return value.lower() in ('true', '1', 'yes', 'on')
+        return bool(value)
+
     def create(self, validated_data):
         user = self.context['request'].user
         validated_data['created_by'] = user
@@ -151,6 +161,11 @@ class GalleryItemSerializer(serializers.ModelSerializer):
 
     def get_type(self, obj):
         return 'image'
+
+    def validate_is_published(self, value):
+        if isinstance(value, str):
+            return value.lower() in ('true', '1', 'yes', 'on')
+        return bool(value)
 
     def create(self, validated_data):
         user = self.context['request'].user

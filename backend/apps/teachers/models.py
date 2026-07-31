@@ -166,15 +166,39 @@ class TeacherSalaryPayment(BaseModel):
     pay_period_start = models.DateField()
     pay_period_end = models.DateField()
     basic_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pension_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     net_salary = models.DecimalField(max_digits=12, decimal_places=2)
+    bank_name = models.CharField(max_length=100, blank=True)
+    bank_account = models.CharField(max_length=50, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     payment_date = models.DateField(null=True, blank=True)
+    approved_by_name = models.CharField(max_length=200, blank=True)
+    beneficiary_name = models.CharField(max_length=200, blank=True)
+    payment_method = models.CharField(max_length=50, blank=True)
+    ticket_receipt = models.ImageField(upload_to='finance/payroll-receipts/', blank=True, null=True)
+    recorded_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:
         ordering = ['-pay_period_start']
+
+    @property
+    def gross_salary(self):
+        return (
+            self.basic_salary + self.housing_allowance
+            + self.transport_allowance + self.other_allowances
+        )
+
+    @property
+    def total_deductions(self):
+        return self.tax_deduction + self.pension_deduction + self.other_deductions
 
     def __str__(self):
         return f'{self.teacher} - {self.pay_period_start}'

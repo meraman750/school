@@ -14,11 +14,11 @@ export default function ConfirmDialog({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <p className="mb-6 text-sm text-gray-600 dark:text-gray-300">{message}</p>
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={onClose}>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button variant="ghost" size="sm" className="w-full sm:w-auto" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant={variant} size="sm" loading={loading} onClick={onConfirm}>
+        <Button variant={variant} size="sm" className="w-full sm:w-auto" loading={loading} onClick={onConfirm}>
           {confirmLabel}
         </Button>
       </div>

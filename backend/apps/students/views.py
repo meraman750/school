@@ -1,11 +1,13 @@
-from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import permissions
 from django.db.models import Q
 
 from rest_framework import viewsets
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsRegistrar, IsStaffMember
+from apps.core.portal_scope import get_portal_students
 from apps.core.teacher_scope import get_teacher_for_user, get_teacher_assigned_sections
 
 from .models import (
@@ -85,13 +87,37 @@ class StudentViewSet(BaseModelViewSet):
         return Response(get_subjects_for_grade(grade_level))
 
 
+GRADE_REPORT_READ_ROLES = IsStaffMember.STAFF_ROLES + ('STUDENT', 'PARENT')
+GRADE_REPORT_WRITE_ROLES = ('SUPER_ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'REGISTRAR', 'TEACHER')
+
+
+class CanReadGradeReport(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        return request.user.role in GRADE_REPORT_READ_ROLES
+
+
+class CanWriteGradeReport(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        return request.user.role in GRADE_REPORT_WRITE_ROLES
+
+
 class StudentGradeReportViewSet(BaseModelViewSet):
     queryset = StudentGradeReport.objects.select_related(
         'student', 'academic_year',
     ).prefetch_related('entries__subject')
-    permission_classes = [IsStaffMember]
     filterset_fields = ['student', 'academic_year', 'grade_level', 'quarter']
     ordering_fields = ['academic_year__start_date', 'quarter', 'created_at']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [CanReadGradeReport()]
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [CanWriteGradeReport()]
+        return [IsStaffMember()]
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
@@ -101,16 +127,22 @@ class StudentGradeReportViewSet(BaseModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         user = self.request.user
-        if getattr(user, 'role', None) != 'TEACHER':
-            return qs
-        teacher = get_teacher_for_user(user)
-        sections = get_teacher_assigned_sections(teacher)
-        if not sections:
-            return qs.none()
-        query = Q()
-        for grade_level, section_name in sections:
-            query |= Q(grade_level=grade_level, student__section=section_name)
-        return qs.filter(query)
+        role = getattr(user, 'role', None)
+
+        if role in ('STUDENT', 'PARENT'):
+            student_ids = [s.id for s in get_portal_students(user) if s]
+            return qs.filter(student_id__in=student_ids)
+
+        if role == 'TEACHER':
+            teacher = get_teacher_for_user(user)
+            sections = get_teacher_assigned_sections(teacher)
+            if not sections:
+                return qs.none()
+            query = Q()
+            for grade_level, section_name in sections:
+                query |= Q(grade_level=grade_level, student__section=section_name)
+            return qs.filter(query)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(

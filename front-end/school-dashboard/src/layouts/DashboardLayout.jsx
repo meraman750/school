@@ -9,6 +9,7 @@ import {
 import { APP_NAME, MODULES } from '../utils/constants';
 import { canShowModuleInNav, normalizeRole } from '../utils/roles';
 import { useAuth } from '../context/AuthContext';
+import { redirectToPublicSite } from '../utils/dashboardAccess';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
 import NotificationBell from '../components/ui/NotificationBell';
 import { getInitials } from '../utils/formatters';
@@ -55,7 +56,7 @@ export default function DashboardLayout() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    redirectToPublicSite();
   };
 
   return (

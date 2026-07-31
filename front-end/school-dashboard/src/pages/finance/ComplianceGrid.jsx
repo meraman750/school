@@ -1,16 +1,18 @@
 import EmptyState from '../../components/ui/EmptyState';
 import { FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function ComplianceGrid({
   rows,
   monthKey = 'months',
+  monthDetailsKey = 'month_details',
   nameKey = 'name',
   idField,
   editable = false,
   pendingKey = null,
-  onMonthChange,
+  onRequestMarkPaid,
+  onViewPaidDetail,
 }) {
   if (!rows?.length) {
     return <EmptyState title="No records" description="No data for this year." />;
@@ -33,27 +35,37 @@ export default function ComplianceGrid({
             return (
               <tr key={rowId} className="border-b border-gray-100 dark:border-gray-800">
                 <td className="py-2 pr-4 font-semibold">{row[nameKey]}</td>
-                {MONTHS.map((_, i) => {
+                {MONTHS.map((label, i) => {
                   const month = i + 1;
-                  const paid = row[monthKey]?.[String(month)];
+                  const detail = row[monthDetailsKey]?.[String(month)];
+                  const paid = Boolean(row[monthKey]?.[String(month)] && detail);
                   const cellPending = pendingKey === `${rowId}-${month}`;
-                  if (editable && onMonthChange) {
+                  if (editable && onRequestMarkPaid) {
                     return (
                       <td key={i} className="px-0.5 py-1 text-center">
-                        <select
-                          value={paid ? 'paid' : 'unpaid'}
-                          disabled={cellPending}
-                          onChange={(e) => onMonthChange(rowId, month, e.target.value === 'paid')}
-                          className={`w-full max-w-[5.5rem] rounded border px-0.5 py-1 text-[10px] font-semibold ${
-                            paid
-                              ? 'border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200'
-                              : 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200'
-                          } disabled:opacity-50`}
-                          aria-label={`${row[nameKey]} ${MONTHS[i]} payment status`}
-                        >
-                          <option value="paid">Paid</option>
-                          <option value="unpaid">Not paid</option>
-                        </select>
+                        {paid ? (
+                          <button
+                            type="button"
+                            disabled={cellPending}
+                            onClick={() => onViewPaidDetail?.(rowId, month, row, detail)}
+                            className="inline-flex min-w-[5.5rem] items-center justify-center gap-1 rounded border border-green-300 bg-green-50 px-1 py-1 text-[10px] font-semibold text-green-800 transition hover:bg-green-100 disabled:opacity-50 dark:border-green-800 dark:bg-green-950 dark:text-green-200 dark:hover:bg-green-900"
+                            title="View payment details"
+                          >
+                            <FiCheckCircle />
+                            Paid
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={cellPending}
+                            onClick={() => onRequestMarkPaid(rowId, month, row)}
+                            className="inline-flex min-w-[5.5rem] items-center justify-center gap-1 rounded border border-red-300 bg-red-50 px-1 py-1 text-[10px] font-semibold text-red-800 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900"
+                            title="Record payment"
+                          >
+                            <FiAlertCircle />
+                            Not paid
+                          </button>
+                        )}
                       </td>
                     );
                   }

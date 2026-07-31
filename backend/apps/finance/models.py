@@ -169,6 +169,14 @@ class StudentMonthlyFeeStatus(BaseModel):
     year = models.PositiveIntegerField()
     month = models.PositiveSmallIntegerField()
     is_paid = models.BooleanField(default=False)
+    approved_by_name = models.CharField(max_length=200, blank=True)
+    beneficiary_name = models.CharField(max_length=200, blank=True)
+    payer_party_name = models.CharField(max_length=200, blank=True)
+    payment_method = models.CharField(max_length=50, blank=True)
+    transaction_reference = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    ticket_receipt = models.ImageField(upload_to='finance/compliance-receipts/', blank=True, null=True)
+    recorded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['year', 'month']
@@ -192,6 +200,14 @@ class TeacherMonthlyPayrollStatus(BaseModel):
     year = models.PositiveIntegerField()
     month = models.PositiveSmallIntegerField()
     is_paid = models.BooleanField(default=False)
+    approved_by_name = models.CharField(max_length=200, blank=True)
+    beneficiary_name = models.CharField(max_length=200, blank=True)
+    payer_party_name = models.CharField(max_length=200, blank=True)
+    payment_method = models.CharField(max_length=50, blank=True)
+    transaction_reference = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    ticket_receipt = models.ImageField(upload_to='finance/compliance-receipts/', blank=True, null=True)
+    recorded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['year', 'month']

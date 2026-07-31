@@ -16,7 +16,7 @@ export default function EmptyState({
       <h3 className="text-sm font-bold text-gray-900 dark:text-white">{title}</h3>
       <p className="mt-1 max-w-sm text-xs text-gray-500">{description}</p>
       {actionLabel && onAction && (
-        <Button className="mt-4" size="sm" onClick={onAction}>
+        <Button className="mt-4 w-full sm:w-auto" size="sm" onClick={onAction}>
           {actionLabel}
         </Button>
       )}

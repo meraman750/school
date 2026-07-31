@@ -9,7 +9,7 @@ import {
 } from 'react-icons/fi';
 import {
   teachersApi, teacherQualificationsApi, teacherLeavesApi,
-  teacherPerformanceApi, teacherSalaryInfoApi, teacherSalaryPaymentsApi,
+  teacherPerformanceApi,
 } from '../../services/api';
 import Card, { CardHeader } from '../../components/ui/Card';
 import { TableSkeleton } from '../../components/ui/Skeleton';
@@ -50,17 +50,6 @@ const LEAVE_STATUS = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'APPROVED', label: 'Approved' },
   { value: 'REJECTED', label: 'Rejected' },
-];
-
-const PAYMENT_METHODS = [
-  { value: 'BANK', label: 'Bank Transfer' },
-  { value: 'CASH', label: 'Cash' },
-  { value: 'MOBILE', label: 'Mobile Money' },
-];
-
-const PAYMENT_STATUS = [
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'PAID', label: 'Paid' },
 ];
 
 const STATUS_BADGE = {
@@ -421,159 +410,6 @@ function PerformanceModal({ isOpen, onClose, teacher, review, onSuccess }) {
   );
 }
 
-function SalaryInfoModal({ isOpen, onClose, teacher, salaryInfo, onSuccess }) {
-  const { register, handleSubmit, reset } = useForm();
-
-  useEffect(() => {
-    if (isOpen) {
-      reset({
-        base_salary: salaryInfo?.base_salary ?? '',
-        housing_allowance: salaryInfo?.housing_allowance ?? '',
-        transport_allowance: salaryInfo?.transport_allowance ?? '',
-        other_allowances: salaryInfo?.other_allowances ?? '',
-        tax_deduction: salaryInfo?.tax_deduction ?? '',
-        pension_deduction: salaryInfo?.pension_deduction ?? '',
-        other_deductions: salaryInfo?.other_deductions ?? '',
-        bank_name: salaryInfo?.bank_name || '',
-        bank_account: salaryInfo?.bank_account || '',
-        payment_method: salaryInfo?.payment_method || 'BANK',
-        effective_from: salaryInfo?.effective_from || '',
-        notes: salaryInfo?.notes || '',
-      });
-    }
-  }, [isOpen, salaryInfo, reset]);
-
-  const mutation = useMutation({
-    mutationFn: (data) => {
-      const payload = {
-        teacher: teacher.id,
-        base_salary: data.base_salary || 0,
-        housing_allowance: data.housing_allowance || 0,
-        transport_allowance: data.transport_allowance || 0,
-        other_allowances: data.other_allowances || 0,
-        tax_deduction: data.tax_deduction || 0,
-        pension_deduction: data.pension_deduction || 0,
-        other_deductions: data.other_deductions || 0,
-        bank_name: data.bank_name,
-        bank_account: data.bank_account,
-        payment_method: data.payment_method,
-        effective_from: data.effective_from || null,
-        notes: data.notes,
-      };
-      return salaryInfo?.id
-        ? teacherSalaryInfoApi.update(salaryInfo.id, payload)
-        : teacherSalaryInfoApi.create(payload);
-    },
-    onSuccess: () => { toast.success('Salary information updated'); onSuccess(); onClose(); },
-    onError: (err) => toast.error(getApiError(err, 'Failed to update salary')),
-  });
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Edit Salary Structure" size="lg">
-      <form onSubmit={handleSubmit((d) => mutation.mutate(d), onFormInvalid)} className="space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Earnings</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Base Salary (ETB)" type="number" step="0.01" {...register('base_salary', { required: true })} />
-          <Input label="Housing Allowance" type="number" step="0.01" {...register('housing_allowance')} />
-          <Input label="Transport Allowance" type="number" step="0.01" {...register('transport_allowance')} />
-          <Input label="Other Allowances" type="number" step="0.01" {...register('other_allowances')} />
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Deductions</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Input label="Tax" type="number" step="0.01" {...register('tax_deduction')} />
-          <Input label="Pension" type="number" step="0.01" {...register('pension_deduction')} />
-          <Input label="Other Deductions" type="number" step="0.01" {...register('other_deductions')} />
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Payment Details</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Bank Name" {...register('bank_name')} />
-          <Input label="Bank Account" {...register('bank_account')} />
-          <Select label="Payment Method" options={PAYMENT_METHODS} {...register('payment_method')} />
-          <Input label="Effective From" type="date" {...register('effective_from')} />
-        </div>
-        <Textarea label="Notes" rows={2} {...register('notes')} />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" loading={mutation.isPending}>Save</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function SalaryPaymentModal({ isOpen, onClose, teacher, payment, onSuccess }) {
-  const { register, handleSubmit, reset, watch } = useForm();
-  const isEdit = Boolean(payment?.id);
-  const basic = Number(watch('basic_salary') || 0);
-  const allowances = Number(watch('allowances') || 0);
-  const deductions = Number(watch('deductions') || 0);
-  const netPreview = basic + allowances - deductions;
-
-  useEffect(() => {
-    if (isOpen) {
-      reset({
-        pay_period_start: payment?.pay_period_start || '',
-        pay_period_end: payment?.pay_period_end || '',
-        basic_salary: payment?.basic_salary ?? '',
-        allowances: payment?.allowances ?? '',
-        deductions: payment?.deductions ?? '',
-        status: payment?.status || 'PENDING',
-        payment_date: payment?.payment_date || '',
-        notes: payment?.notes || '',
-      });
-    }
-  }, [isOpen, payment, reset]);
-
-  const mutation = useMutation({
-    mutationFn: (data) => {
-      const payload = {
-        teacher: teacher.id,
-        pay_period_start: data.pay_period_start,
-        pay_period_end: data.pay_period_end,
-        basic_salary: data.basic_salary || 0,
-        allowances: data.allowances || 0,
-        deductions: data.deductions || 0,
-        status: data.status,
-        payment_date: data.payment_date || null,
-        notes: data.notes,
-      };
-      return isEdit
-        ? teacherSalaryPaymentsApi.update(payment.id, payload)
-        : teacherSalaryPaymentsApi.create(payload);
-    },
-    onSuccess: () => {
-      toast.success(isEdit ? 'Payment record updated' : 'Payment record added');
-      onSuccess();
-      onClose();
-    },
-    onError: (err) => toast.error(getApiError(err, 'Failed to save payment')),
-  });
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Salary Payment' : 'Record Salary Payment'} size="lg">
-      <form onSubmit={handleSubmit((d) => mutation.mutate(d), onFormInvalid)} className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Period Start" type="date" {...register('pay_period_start', { required: true })} />
-          <Input label="Period End" type="date" {...register('pay_period_end', { required: true })} />
-          <Input label="Basic Salary" type="number" step="0.01" {...register('basic_salary', { required: true })} />
-          <Input label="Allowances" type="number" step="0.01" {...register('allowances')} />
-          <Input label="Deductions" type="number" step="0.01" {...register('deductions')} />
-          <Select label="Status" options={PAYMENT_STATUS} {...register('status', { required: true })} />
-          <Input label="Payment Date" type="date" {...register('payment_date')} />
-        </div>
-        <p className="rounded-lg bg-primary/5 px-3 py-2 text-sm font-semibold text-primary">
-          Net salary: {formatCurrency(netPreview)}
-        </p>
-        <Textarea label="Notes" rows={2} {...register('notes')} />
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" loading={mutation.isPending}>Save</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
 export default function TeacherDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -589,15 +425,13 @@ export default function TeacherDetailPage() {
   const [editingLeave, setEditingLeave] = useState(null);
   const [performanceModal, setPerformanceModal] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
-  const [salaryInfoModal, setSalaryInfoModal] = useState(false);
-  const [paymentModal, setPaymentModal] = useState(false);
-  const [editingPayment, setEditingPayment] = useState(null);
   const [assignGrade, setAssignGrade] = useState('5');
   const [assignSection, setAssignSection] = useState('A');
 
   const { data: teacher, isLoading, isError } = useQuery({
     queryKey: ['teacher-profile', id],
     queryFn: () => teachersApi.getProfile(id),
+    refetchOnWindowFocus: true,
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['teacher-profile', id] });
@@ -635,9 +469,11 @@ export default function TeacherDetailPage() {
   }
 
   const salary = teacher.salary_info;
+  const paidSalaryPayments = teacher.salary_payments || [];
+  const viewingOwnProfile = isTeacherRole(role);
   const visibleTabs = TABS.filter((tab) => {
-    if (tab.id === 'salary' && !canManageTeacherSalary(role)) return false;
-    if (isTeacherRole(role) && (tab.id === 'salary' || tab.id === 'performance')) return false;
+    if (tab.id === 'salary' && !canManageTeacherSalary(role) && !isTeacherRole(role)) return false;
+    if (isTeacherRole(role) && tab.id === 'performance') return false;
     return true;
   });
 
@@ -763,13 +599,12 @@ export default function TeacherDetailPage() {
             )}
           </Card>
 
+          {!viewingOwnProfile && (
           <Card className="lg:col-span-2">
-            <div className="mb-3 flex items-start justify-between gap-2">
-              <CardHeader title="Salary Summary" subtitle="Current compensation structure" />
-              <Button type="button" variant="ghost" size="sm" onClick={() => setSalaryInfoModal(true)}>
-                <FiEdit2 /> Edit
-              </Button>
-            </div>
+            <CardHeader
+              title="Salary Summary"
+              subtitle="Compensation structure — payments are recorded from Finance → Teacher Payroll"
+            />
             {salary ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800/50">
@@ -790,13 +625,12 @@ export default function TeacherDetailPage() {
               </div>
             ) : (
               <EmptyState
-                title="No salary information"
-                description="Set up this teacher's salary structure."
-                actionLabel="Add Salary Info"
-                onAction={() => setSalaryInfoModal(true)}
+                title="No salary structure"
+                description="Salary structure must be configured before finance can record payroll."
               />
             )}
           </Card>
+          )}
         </div>
       )}
 
@@ -919,24 +753,20 @@ export default function TeacherDetailPage() {
 
       {activeTab === 'salary' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Salary & Payments</h3>
-              <p className="text-xs text-gray-500">Compensation structure and payment history</p>
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setSalaryInfoModal(true)}>
-                <FiEdit2 /> Edit Structure
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => { setEditingPayment(null); setPaymentModal(true); }}>
-                <FiPlus /> Record Payment
-              </Button>
-            </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+              {viewingOwnProfile ? 'My Salary Payments' : 'Salary & Payments'}
+            </h3>
+            <p className="text-xs text-gray-500">
+              {viewingOwnProfile
+                ? 'Only months marked Paid in finance payroll are shown here.'
+                : 'Payments are synced from Finance → Teacher Payroll. Unpaid months are not listed.'}
+            </p>
           </div>
 
-          {salary && (
+          {!viewingOwnProfile && salary && (
             <Card padding>
-              <CardHeader title="Current Salary Structure" />
+              <CardHeader title="Current Salary Structure" subtitle="Read-only reference for payroll amounts" />
               <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <DetailRow label="Base" value={formatCurrency(salary.base_salary)} />
                 <DetailRow label="Housing" value={formatCurrency(salary.housing_allowance)} />
@@ -950,32 +780,34 @@ export default function TeacherDetailPage() {
             </Card>
           )}
 
-          {teacher.salary_payments?.length ? (
+          {paidSalaryPayments.length ? (
             <Table
               columns={[
-                { key: 'period', header: 'Pay Period', render: (r) => `${formatDate(r.pay_period_start)} – ${formatDate(r.pay_period_end)}` },
+                {
+                  key: 'period',
+                  header: 'Month',
+                  render: (r) => formatDate(r.pay_period_start, { month: 'long', year: 'numeric' }),
+                },
                 { key: 'basic', header: 'Basic', render: (r) => formatCurrency(r.basic_salary) },
                 { key: 'allowances', header: 'Allowances', render: (r) => formatCurrency(r.allowances) },
                 { key: 'deductions', header: 'Deductions', render: (r) => formatCurrency(r.deductions) },
-                { key: 'net', header: 'Net', render: (r) => <span className="font-bold text-primary">{formatCurrency(r.net_salary)}</span> },
-                { key: 'status', header: 'Status', render: (r) => (
-                  <Badge variant={r.status === 'PAID' ? 'success' : 'warning'}>{r.status_label || r.status}</Badge>
-                )},
+                {
+                  key: 'net',
+                  header: 'Net Paid',
+                  render: (r) => <span className="font-bold text-primary">{formatCurrency(r.net_salary)}</span>,
+                },
                 { key: 'paid', header: 'Paid On', render: (r) => formatDate(r.payment_date) },
-                { key: 'actions', header: '', render: (r) => (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingPayment(r); setPaymentModal(true); }}>
-                    <FiEdit2 />
-                  </Button>
-                )},
               ]}
-              data={teacher.salary_payments}
+              data={paidSalaryPayments}
             />
           ) : (
             <EmptyState
-              title="No payment records"
-              description="Record monthly salary payments for this teacher."
-              actionLabel="Record Payment"
-              onAction={() => { setEditingPayment(null); setPaymentModal(true); }}
+              title="No paid salary records"
+              description={
+                viewingOwnProfile
+                  ? 'Your salary will appear here after finance marks a month as Paid.'
+                  : 'Mark months as Paid on the Finance → Teacher Payroll page to record payments here.'
+              }
             />
           )}
         </div>
@@ -1003,20 +835,6 @@ export default function TeacherDetailPage() {
         onClose={() => setPerformanceModal(false)}
         teacher={teacher}
         review={editingReview}
-        onSuccess={refresh}
-      />
-      <SalaryInfoModal
-        isOpen={salaryInfoModal}
-        onClose={() => setSalaryInfoModal(false)}
-        teacher={teacher}
-        salaryInfo={salary}
-        onSuccess={refresh}
-      />
-      <SalaryPaymentModal
-        isOpen={paymentModal}
-        onClose={() => setPaymentModal(false)}
-        teacher={teacher}
-        payment={editingPayment}
         onSuccess={refresh}
       />
     </motion.div>

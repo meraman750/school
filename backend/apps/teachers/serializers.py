@@ -224,7 +224,7 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     leaves = TeacherLeaveSerializer(many=True, read_only=True)
     performance_reviews = TeacherPerformanceSerializer(many=True, read_only=True)
     salary_info = TeacherSalaryInfoSerializer(read_only=True)
-    salary_payments = TeacherSalaryPaymentSerializer(many=True, read_only=True)
+    salary_payments = serializers.SerializerMethodField()
     classes_taught = serializers.SerializerMethodField()
 
     class Meta:
@@ -242,6 +242,13 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         parts = [obj.first_name, obj.middle_name, obj.last_name]
         return ' '.join(p for p in parts if p)
 
+    def get_salary_payments(self, obj):
+        payments = obj.salary_payments.filter(
+            is_deleted=False,
+            status=TeacherSalaryPayment.Status.PAID,
+        ).order_by('-pay_period_start')
+        return TeacherSalaryPaymentSerializer(payments, many=True).data
+
     def get_classes_taught(self, obj):
         classes = SchoolClass.objects.filter(
             class_teacher=obj, is_deleted=False,
@@ -252,3 +259,81 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
             'grade_level': c.grade_level,
             'academic_year_name': c.academic_year.name if c.academic_year else '',
         } for c in classes]
+
+
+class TeacherMyPayrollPaymentSerializer(serializers.ModelSerializer):
+    pay_period_label = serializers.SerializerMethodField()
+    gross_salary = serializers.SerializerMethodField()
+    total_deductions = serializers.SerializerMethodField()
+    payment_method_label = serializers.SerializerMethodField()
+    ticket_receipt_url = serializers.SerializerMethodField()
+    recorded_at = serializers.DateTimeField(read_only=True)
+
+    class Meta:
+        model = TeacherSalaryPayment
+        fields = (
+            'id', 'pay_period_start', 'pay_period_end', 'pay_period_label',
+            'payment_date', 'basic_salary', 'housing_allowance', 'transport_allowance',
+            'other_allowances', 'gross_salary', 'tax_deduction', 'pension_deduction',
+            'other_deductions', 'total_deductions', 'net_salary',
+            'payment_method_label', 'bank_name', 'bank_account',
+            'approved_by_name', 'beneficiary_name', 'recorded_at', 'ticket_receipt_url', 'notes',
+        )
+
+    def get_pay_period_label(self, obj):
+        return obj.pay_period_start.strftime('%B %Y')
+
+    def get_gross_salary(self, obj):
+        return obj.gross_salary
+
+    def get_total_deductions(self, obj):
+        return obj.total_deductions
+
+    def get_payment_method_label(self, obj):
+        if not obj.payment_method:
+            return ''
+        labels = {
+            **dict(TeacherSalaryInfo.PaymentMethod.choices),
+            'BANK_TRANSFER': 'Bank Transfer',
+            'MOBILE_MONEY': 'Mobile Money',
+            'CHEQUE': 'Cheque',
+            'CARD': 'Card',
+        }
+        return labels.get(obj.payment_method, obj.payment_method)
+
+    def get_ticket_receipt_url(self, obj):
+        if obj.ticket_receipt:
+            request = self.context.get('request')
+            url = obj.ticket_receipt.url
+            if request is not None:
+                return request.build_absolute_uri(url)
+            return url
+        return None
+
+
+class TeacherMyPayrollSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    payments = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Teacher
+        fields = ('employee_id', 'full_name', 'payments')
+
+    def get_full_name(self, obj):
+        parts = [obj.first_name, obj.middle_name, obj.last_name]
+        return ' '.join(p for p in parts if p)
+
+    def get_payments(self, obj):
+        try:
+            salary_info = obj.salary_info
+        except TeacherSalaryInfo.DoesNotExist:
+            salary_info = None
+        payments = obj.salary_payments.filter(
+            is_deleted=False,
+            status=TeacherSalaryPayment.Status.PAID,
+        ).order_by('-pay_period_start')
+        return TeacherMyPayrollPaymentSerializer(
+            payments,
+            many=True,
+            context={'salary_info': salary_info, 'request': self.context.get('request')},
+        ).data
