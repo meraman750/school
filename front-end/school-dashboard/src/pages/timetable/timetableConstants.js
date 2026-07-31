@@ -1,3 +1,5 @@
+import { GRADE_LEVELS, GRADE_OPTIONS } from '../../utils/constants';
+
 export const EVENT_TYPE_OPTIONS = [
   { value: 'TERM', label: 'Term / Semester' },
   { value: 'HOLIDAY', label: 'Holiday / Break' },
@@ -8,10 +10,10 @@ export const EVENT_TYPE_OPTIONS = [
 
 export const GRADE_FORM_OPTIONS = [
   { value: '', label: 'All grades (whole school)' },
-  ...[1, 2, 3, 4, 5, 6, 7, 8].map((g) => ({ value: String(g), label: `Grade ${g}` })),
+  ...GRADE_OPTIONS,
 ];
 
-export const GRADE_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+export { GRADE_LEVELS };
 
 export const CLASS_TIMETABLE_DAYS = [
   { value: 1, label: 'Monday', short: 'Mon' },

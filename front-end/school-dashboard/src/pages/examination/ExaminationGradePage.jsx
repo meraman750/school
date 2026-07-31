@@ -12,6 +12,7 @@ import { TableSkeleton } from '../../components/ui/Skeleton';
 import { academicsSubApi } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { isReadOnlyModule, normalizeRole } from '../../utils/roles';
+import { isValidGradeLevel } from '../../utils/constants';
 import useModulePaths from '../../hooks/useModulePaths';
 import usePortalContext from '../../hooks/usePortalContext';
 import {
@@ -72,7 +73,7 @@ export default function ExaminationGradePage() {
   const { data: plan, isLoading: planLoading } = useQuery({
     queryKey: planQueryKey,
     queryFn: () => academicsSubApi.gradeExamSchedules.getGradePlan(grade),
-    enabled: grade >= 1 && grade <= 8,
+    enabled: isValidGradeLevel(grade),
   });
 
   const {
@@ -93,7 +94,7 @@ export default function ExaminationGradePage() {
       });
       return list?.results || list || [];
     },
-    enabled: grade >= 1 && grade <= 8,
+    enabled: isValidGradeLevel(grade),
   });
 
   useEffect(() => {
@@ -148,7 +149,7 @@ export default function ExaminationGradePage() {
     },
   });
 
-  if (!grade || grade < 1 || grade > 8 || (isPortal && !canAccessGrade(grade))) {
+  if (!isValidGradeLevel(grade) || (isPortal && !canAccessGrade(grade))) {
     return <Navigate to={examinationListPath()} replace />;
   }
 

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.core.grade_levels import GRADE_LEVEL_RANGE_MSG, is_valid_grade_level
+
 from .models import (
     AcademicYear, Term, Semester, Department, Subject, SchoolClass, Section,
     Curriculum, LessonPlan, Assignment, Homework, Examination, ExamSchedule,
@@ -266,8 +268,8 @@ class AnnualScheduleSerializer(serializers.ModelSerializer):
         if end and start and end < start:
             raise serializers.ValidationError({'end_date': 'End date cannot be before start date.'})
         grade = attrs.get('grade_level')
-        if grade is not None and (grade < 1 or grade > 8):
-            raise serializers.ValidationError({'grade_level': 'Grade level must be between 1 and 8.'})
+        if grade is not None and not is_valid_grade_level(grade):
+            raise serializers.ValidationError({'grade_level': GRADE_LEVEL_RANGE_MSG})
         request = self.context.get('request')
         if request and request.FILES.getlist('files'):
             for uploaded in request.FILES.getlist('files'):
@@ -367,8 +369,8 @@ class GradeAcademicItemSerializer(serializers.ModelSerializer):
         return obj.attachments.filter(is_deleted=False).count()
 
     def validate_grade_level(self, value):
-        if value < 1 or value > 8:
-            raise serializers.ValidationError('Grade level must be between 1 and 8.')
+        if not is_valid_grade_level(value):
+            raise serializers.ValidationError(GRADE_LEVEL_RANGE_MSG)
         return value
 
     def validate(self, attrs):
@@ -460,8 +462,8 @@ class GradeExamScheduleEntrySerializer(serializers.ModelSerializer):
         return obj.exam_date.strftime('%A') if obj.exam_date else ''
 
     def validate_grade_level(self, value):
-        if value < 1 or value > 8:
-            raise serializers.ValidationError('Grade level must be between 1 and 8.')
+        if not is_valid_grade_level(value):
+            raise serializers.ValidationError(GRADE_LEVEL_RANGE_MSG)
         return value
 
     def validate(self, attrs):
@@ -497,8 +499,8 @@ class GradeExamSchedulePlanSerializer(serializers.ModelSerializer):
         read_only_fields = ('created_at', 'updated_at', 'created_by', 'updated_by', 'is_deleted')
 
     def validate_grade_level(self, value):
-        if value < 1 or value > 8:
-            raise serializers.ValidationError('Grade level must be between 1 and 8.')
+        if not is_valid_grade_level(value):
+            raise serializers.ValidationError(GRADE_LEVEL_RANGE_MSG)
         return value
 
     def validate_subjects_per_day(self, value):

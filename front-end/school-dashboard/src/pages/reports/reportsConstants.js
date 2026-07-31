@@ -1,4 +1,4 @@
-export const REPORT_GRADE_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+export { GRADE_LEVELS as REPORT_GRADE_LEVELS } from '../../utils/constants';
 
 export function reportsListPath() {
   return '/reports';

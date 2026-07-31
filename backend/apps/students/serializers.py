@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.core.grade_levels import GRADE_LEVEL_RANGE_MSG, is_valid_grade_level
+
 from apps.academics.models import AcademicYear, Curriculum, Subject
 
 from .models import (
@@ -186,8 +188,8 @@ class StudentSerializer(serializers.ModelSerializer):
         }
 
     def validate_grade_level(self, value):
-        if value is not None and (value < 1 or value > 8):
-            raise serializers.ValidationError('Grade must be between 1 and 8.')
+        if value is not None and not is_valid_grade_level(value):
+            raise serializers.ValidationError(GRADE_LEVEL_RANGE_MSG)
         return value
 
     def validate_status(self, value):
@@ -320,8 +322,8 @@ class StudentGradeReportWriteSerializer(serializers.ModelSerializer):
         validators = []
 
     def validate_grade_level(self, value):
-        if value < 1 or value > 8:
-            raise serializers.ValidationError('Grade must be between 1 and 8.')
+        if not is_valid_grade_level(value):
+            raise serializers.ValidationError(GRADE_LEVEL_RANGE_MSG)
         return value
 
     def validate_entries(self, value):
@@ -410,8 +412,8 @@ class StudentEnrollmentRecordSerializer(serializers.ModelSerializer):
         return get_subjects_for_enrollment(obj)
 
     def validate_grade_level(self, value):
-        if value < 1 or value > 8:
-            raise serializers.ValidationError('Grade must be between 1 and 8.')
+        if not is_valid_grade_level(value):
+            raise serializers.ValidationError(GRADE_LEVEL_RANGE_MSG)
         return value
 
     def validate(self, attrs):

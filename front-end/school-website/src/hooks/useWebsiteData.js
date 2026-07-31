@@ -25,6 +25,31 @@ const withFallback = (data, fallback) => {
   return results
 }
 
+function normalizeBlogPost(item) {
+  return {
+    ...item,
+    date: item.date || item.published_at || item.created_at,
+    category: item.category_label
+      || (item.category === 'ANNOUNCEMENT' ? 'Announcement' : 'News'),
+    image: item.featured_image_url || item.image,
+  }
+}
+
+function normalizeEvent(item) {
+  return {
+    ...item,
+    date: item.date || item.start_date,
+  }
+}
+
+function normalizeGalleryItem(item) {
+  return {
+    ...item,
+    type: item.type || 'image',
+    url: item.url || item.image_url || item.image,
+  }
+}
+
 export function useSchoolInfo() {
   return useQuery({
     queryKey: ['school-info'],
@@ -47,7 +72,8 @@ export function useBlog() {
     queryFn: async () => {
       try {
         const { data } = await websiteApi.getBlog()
-        return withFallback(data, FALLBACK_BLOG)
+        const results = withFallback(data, FALLBACK_BLOG)
+        return results.map(normalizeBlogPost)
       } catch {
         return FALLBACK_BLOG
       }
@@ -63,7 +89,8 @@ export function useEvents() {
     queryFn: async () => {
       try {
         const { data } = await websiteApi.getEvents()
-        return withFallback(data, FALLBACK_EVENTS)
+        const results = withFallback(data, FALLBACK_EVENTS)
+        return results.map(normalizeEvent)
       } catch {
         return FALLBACK_EVENTS
       }
@@ -79,7 +106,8 @@ export function useGallery() {
     queryFn: async () => {
       try {
         const { data } = await websiteApi.getGallery()
-        return withFallback(data, FALLBACK_GALLERY)
+        const results = withFallback(data, FALLBACK_GALLERY)
+        return results.map(normalizeGalleryItem)
       } catch {
         return FALLBACK_GALLERY
       }

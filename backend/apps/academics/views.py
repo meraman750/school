@@ -6,6 +6,7 @@ from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
+from apps.core.grade_levels import GRADE_LEVEL_RANGE_MSG, is_valid_grade_level
 from apps.core.mixins import BaseModelViewSet
 from apps.core.permissions import IsStaffMember, IsTeacher, IsStaffMemberOrPortalReadOnly
 from apps.core.portal_scope import portal_may_access_class, portal_may_access_grade
@@ -80,8 +81,8 @@ class SchoolClassViewSet(BaseModelViewSet):
             grade_level = int(grade_level)
         except (TypeError, ValueError):
             return Response({'detail': 'Invalid grade_level.'}, status=400)
-        if grade_level < 1 or grade_level > 8:
-            return Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+        if not is_valid_grade_level(grade_level):
+            return Response({'detail': GRADE_LEVEL_RANGE_MSG}, status=400)
         if not portal_may_access_grade(request.user, grade_level):
             return Response({'detail': 'You may only view your own class timetable.'}, status=403)
 
@@ -199,8 +200,8 @@ class GradeExamScheduleEntryViewSet(BaseModelViewSet):
             grade_level = int(grade_level)
         except (TypeError, ValueError):
             return None, Response({'detail': 'Invalid grade_level.'}, status=400)
-        if grade_level < 1 or grade_level > 8:
-            return None, Response({'detail': 'grade_level must be between 1 and 8.'}, status=400)
+        if not is_valid_grade_level(grade_level):
+            return None, Response({'detail': GRADE_LEVEL_RANGE_MSG}, status=400)
         return grade_level, None
 
     @action(detail=False, methods=['get', 'patch'], url_path='grade-plan')

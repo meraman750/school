@@ -40,6 +40,7 @@ const TUITION = [
   { item: 'KG 1 – KG 3 (Annual)', amount: 'ETB 45,000', note: 'Payable in installments' },
   { item: 'Grades 1 – 4 (Annual)', amount: 'ETB 52,000', note: 'Payable in installments' },
   { item: 'Grades 5 – 8 (Annual)', amount: 'ETB 58,000', note: 'Payable in installments' },
+  { item: 'Grades 9 – 12 (Annual)', amount: 'ETB 65,000', note: 'Payable in installments' },
   { item: 'Transportation (Optional)', amount: 'ETB 12,000/yr', note: 'Zone-based pricing' },
 ]
 
