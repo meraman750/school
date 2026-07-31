@@ -28,12 +28,21 @@ class SchoolInfo(BaseModel):
 
 
 class BlogPost(BaseModel):
+    class Category(models.TextChoices):
+        NEWS = 'NEWS', 'News'
+        ANNOUNCEMENT = 'ANNOUNCEMENT', 'Announcement'
+
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     content = models.TextField()
     excerpt = models.TextField(blank=True)
     featured_image = models.ImageField(upload_to='website/blog/', blank=True, null=True)
     author_name = models.CharField(max_length=100)
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.NEWS,
+    )
     is_published = models.BooleanField(default=False)
     published_at = models.DateTimeField(null=True, blank=True)
     tags = models.CharField(max_length=255, blank=True)

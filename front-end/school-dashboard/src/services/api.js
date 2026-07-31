@@ -144,6 +144,26 @@ export const documentsApi = {
 };
 export const settingsApi = createResourceService('settings/school-profile');
 
+export const websiteBlogApi = {
+  list: (params) => api.get('website/blog/', { params }).then((r) => r.data),
+  get: (slug) => api.get(`website/blog/${slug}/`).then((r) => r.data),
+  create: (formData) => api.post('website/blog/', formData).then((r) => r.data),
+  update: (slug, formData) => api.patch(`website/blog/${slug}/`, formData).then((r) => r.data),
+  delete: (slug) => api.delete(`website/blog/${slug}/`).then((r) => r.data),
+};
+
+export const websiteEventsApi = {
+  ...createResourceService('website/events'),
+  create: (formData) => api.post('website/events/', formData).then((r) => r.data),
+  update: (id, formData) => api.patch(`website/events/${id}/`, formData).then((r) => r.data),
+};
+
+export const websiteGalleryApi = {
+  ...createResourceService('website/gallery'),
+  create: (formData) => api.post('website/gallery/', formData).then((r) => r.data),
+  update: (id, formData) => api.patch(`website/gallery/${id}/`, formData).then((r) => r.data),
+};
+
 export const dashboardApi = {
   getStats: () => api.get('dashboard/stats/').then((r) => r.data),
   getActivities: (params) => api.get('dashboard/activities/', { params }).then((r) => r.data),

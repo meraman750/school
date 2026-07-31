@@ -50,6 +50,7 @@ const STAFF_MODULE_ACCESS = {
   documents: [...ADMIN_ROLES],
   reports: [...ADMIN_ROLES, ...TEACHER_ROLES],
   activity: [...ADMIN_ROLES],
+  websiteContent: [...ADMIN_ROLES],
   studentFees: [...FINANCE_ROLES],
   teacherPayroll: [...FINANCE_ROLES],
   finance: [...FINANCE_ROLES],
