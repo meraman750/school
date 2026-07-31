@@ -22,7 +22,6 @@ export const SCHOOL_LOCATION = 'Addis Ababa, Ethiopia'
 
 export const NAV_LINKS = [
   { label: 'Home', path: '/' },
-  { label: 'About', path: '/about' },
   { label: 'Academics', path: '/academics' },
   { label: 'Admissions', path: '/admissions' },
   { label: 'News & Events', path: '/news-events' },
@@ -32,7 +31,6 @@ export const NAV_LINKS = [
 
 export const FOOTER_LINKS = {
   explore: [
-    { label: 'About Us', path: '/about' },
     { label: 'Academics', path: '/academics' },
     { label: 'Admissions', path: '/admissions' },
     { label: 'Gallery', path: '/gallery' },
@@ -183,7 +181,7 @@ export const FALLBACK_STUDENT_HIGHLIGHTS = [
 ]
 
 export const SEARCH_INDEX = [
-  { title: 'About Us', path: '/about', keywords: 'history mission vision leadership facilities' },
+  { title: 'About Us', path: '/#about', keywords: 'history mission vision values principal' },
   { title: 'Academics', path: '/academics', keywords: 'programs curriculum grades teaching' },
   { title: 'Admissions', path: '/admissions', keywords: 'enroll apply tuition requirements' },
   { title: 'Contact', path: '/contact', keywords: 'address phone email location map' },

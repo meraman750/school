@@ -1,8 +1,7 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import ScrollToTop from './components/layout/ScrollToTop'
 import Home from './pages/Home'
-import About from './pages/About'
 import Academics from './pages/Academics'
 import Admissions from './pages/Admissions'
 import NewsEvents from './pages/NewsEvents'
@@ -23,7 +22,7 @@ export default function App() {
       <Route path="biruk-admin" element={<AdminGateway />} />
       <Route element={<MainLayout />}>
         <Route index element={<Home />} />
-        <Route path="about" element={<About />} />
+        <Route path="about" element={<Navigate to="/" replace />} />
         <Route path="academics" element={<Academics />} />
         <Route path="admissions" element={<Admissions />} />
         <Route path="news-events" element={<NewsEvents />} />
